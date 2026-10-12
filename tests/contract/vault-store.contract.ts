@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { gitBlobShaOfText } from '@/lib/vault/blob';
-import { AlreadyExistsError, ConflictError, NotFoundError } from '@/lib/vault/errors';
+import {
+  AlreadyExistsError,
+  ConflictError,
+  NotFoundError,
+  UnsupportedOperationError,
+} from '@/lib/vault/errors';
 import { InvalidPathError } from '@/lib/vault/paths';
 import type { VaultStore } from '@/lib/vault/types';
 
@@ -105,6 +110,72 @@ export function describeVaultStoreContract(name: string, setup: () => Promise<Co
       const { store } = await setup();
       await expect(store.read('../fora.md')).rejects.toBeInstanceOf(InvalidPathError);
       await expect(store.create('/abs.md', 'x', message)).rejects.toBeInstanceOf(InvalidPathError);
+      await expect(
+        store.commit(
+          [{ kind: 'put', path: '../fora.md', content: 'x', expectedSha: null }],
+          message,
+        ),
+      ).rejects.toBeInstanceOf(InvalidPathError);
+    });
+
+    it('commit em lote move um arquivo de uma vez (apaga a origem e cria o destino)', async () => {
+      const { store, prefix } = await setup();
+      const from = `${prefix}lote/origem.md`;
+      const to = `${prefix}.trash/lote/origem.md`;
+      const { sha } = await store.create(from, 'conteúdo', message);
+      await store.commit(
+        [
+          { kind: 'delete', path: from, expectedSha: sha },
+          { kind: 'put', path: to, content: 'conteúdo', expectedSha: null },
+        ],
+        message,
+      );
+      await expect(store.read(from)).rejects.toBeInstanceOf(NotFoundError);
+      expect((await store.read(to)).content).toBe('conteúdo');
+    });
+
+    it('commit em lote não grava nada se uma pré-condição falhar', async () => {
+      const harness = await setup();
+      const { store, prefix } = harness;
+      const a = `${prefix}lote2/a.md`;
+      const b = `${prefix}lote2/b.md`;
+      const { sha: shaA } = await store.create(a, 'a1', message);
+      await store.create(b, 'b-existente', message);
+      // b já existe → o lote inteiro é recusado, inclusive a remoção de a.
+      await expect(
+        store.commit(
+          [
+            { kind: 'delete', path: a, expectedSha: shaA },
+            { kind: 'put', path: b, content: 'sobrescrita', expectedSha: null },
+          ],
+          message,
+        ),
+      ).rejects.toBeInstanceOf(AlreadyExistsError);
+      expect((await store.read(a)).content).toBe('a1');
+      expect((await store.read(b)).content).toBe('b-existente');
+
+      // a mudou por fora → conflito, nada é gravado.
+      await harness.writeExternal(a, 'a editado no Obsidian');
+      await expect(
+        store.commit([{ kind: 'delete', path: a, expectedSha: shaA }], message),
+      ).rejects.toBeInstanceOf(ConflictError);
+      expect((await store.read(a)).content).toBe('a editado no Obsidian');
+    });
+
+    it('histórico: lista versões e lê o conteúdo antigo (quando suportado)', async () => {
+      const { store, prefix } = await setup();
+      const path = `${prefix}historico.md`;
+      const { sha } = await store.create(path, 'versão 1', message);
+      await store.update(path, 'versão 2', { ...message, expectedSha: sha });
+      if (!store.supportsHistory) {
+        await expect(store.history(path)).rejects.toBeInstanceOf(UnsupportedOperationError);
+        return;
+      }
+      const history = await store.history(path);
+      expect(history.length).toBeGreaterThanOrEqual(2);
+      expect((await store.readAt(path, history[0]!.sha)).content).toBe('versão 2');
+      expect((await store.readAt(path, history[1]!.sha)).content).toBe('versão 1');
+      expect(history[0]!.date).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     });
   });
 }

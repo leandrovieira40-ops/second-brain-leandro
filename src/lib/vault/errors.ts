@@ -6,6 +6,7 @@ export type VaultErrorCode =
   | 'unavailable'
   | 'misconfigured'
   | 'unsupported_content'
+  | 'unsupported_operation'
   | 'too_large';
 
 /** Erros da camada de persistência. A mensagem é segura para exibir; nunca contém dados do provedor. */
@@ -79,5 +80,12 @@ export class TooLargeError extends VaultError {
   override readonly name = 'TooLargeError';
   constructor(message = 'Arquivo grande demais.') {
     super('too_large', message);
+  }
+}
+
+export class UnsupportedOperationError extends VaultError {
+  override readonly name = 'UnsupportedOperationError';
+  constructor(message: string) {
+    super('unsupported_operation', message);
   }
 }

@@ -1,3 +1,4 @@
+import { assertPrecondition, normalizeBatch } from './batch';
 import { decodeText, encodeText, gitBlobSha } from './blob';
 import {
   AlreadyExistsError,
@@ -12,6 +13,9 @@ import {
 } from './errors';
 import { normalizeVaultPath } from './paths';
 import type {
+  BatchChange,
+  BatchResult,
+  CommitInfo,
   UpdateOptions,
   VaultEntry,
   VaultFile,
@@ -61,6 +65,7 @@ interface WriteResponse {
 export class GitHubVaultStore implements VaultStore {
   readonly kind = 'github' as const;
   readonly description: string;
+  readonly supportsHistory = true;
   private readonly fetchImpl: typeof fetch;
   private readonly base: string;
   private readonly timeoutMs: number;
@@ -103,10 +108,104 @@ export class GitHubVaultStore implements VaultStore {
   }
 
   async read(path: string): Promise<VaultFile> {
+    return this.readRef(normalizeVaultPath(path), this.options.branch);
+  }
+
+  async readAt(path: string, commitSha: string): Promise<VaultFile> {
+    if (!/^[0-9a-f]{40}$/.test(commitSha)) throw new NotFoundError('Versão inválida.');
+    return this.readRef(normalizeVaultPath(path), commitSha);
+  }
+
+  async history(path: string, limit = 30): Promise<CommitInfo[]> {
     const key = normalizeVaultPath(path);
+    const query = new URLSearchParams({
+      path: key,
+      sha: this.options.branch,
+      per_page: String(limit),
+    });
+    const response = await this.request('GET', `/commits?${query}`);
+    if (response.status === 409) return []; // repositório vazio
+    const body = await this.json<
+      { sha: string; commit: { message: string; author?: { name?: string; date?: string } } }[]
+    >(response, 200);
+    return body.map((item) => ({
+      sha: item.sha,
+      message: item.commit.message,
+      date: item.commit.author?.date ?? '',
+      author: item.commit.author?.name ?? null,
+    }));
+  }
+
+  /**
+   * Commit atômico de várias alterações (Git Data API): árvore nova sobre a atual, commit com o head
+   * como pai e avanço do branch SEM force. Se o branch andou no meio do caminho, as pré-condições
+   * são reavaliadas sobre o novo head — um conflito real vira erro, nunca sobrescrita.
+   */
+  async commit(changes: readonly BatchChange[], { message }: WriteOptions): Promise<BatchResult> {
+    const batch = normalizeBatch(changes);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const head = await this.headCommit();
+      const current = await this.treeShas(head.treeSha);
+      for (const change of batch) assertPrecondition(change, current.get(change.path) ?? null);
+
+      const tree = await this.post<{ sha: string }>('/git/trees', {
+        base_tree: head.treeSha,
+        tree: batch.map((change) =>
+          change.kind === 'put'
+            ? { path: change.path, mode: '100644', type: 'blob', content: change.content }
+            : { path: change.path, mode: '100644', type: 'blob', sha: null },
+        ),
+      });
+      const commit = await this.post<{ sha: string }>('/git/commits', {
+        message,
+        tree: tree.sha,
+        parents: [head.commitSha],
+      });
+      const response = await this.request(
+        'PATCH',
+        `/git/refs/heads/${encodePath(this.options.branch)}`,
+        { sha: commit.sha, force: false },
+      );
+      if (response.status === 200) return { commitSha: commit.sha };
+      if (response.status !== 422 && response.status !== 409) throw await this.unexpected(response);
+      await response.body?.cancel(); // branch andou: tenta de novo sobre o head atual
+    }
+    throw new VaultUnavailableError(
+      'O vault mudou várias vezes durante a gravação. Tente de novo.',
+    );
+  }
+
+  private async headCommit(): Promise<{ commitSha: string; treeSha: string }> {
+    const ref = await this.request('GET', `/git/ref/heads/${encodePath(this.options.branch)}`);
+    if (ref.status === 404 || ref.status === 409) {
+      throw new VaultConfigError(
+        'O vault ainda não tem commits (ou o branch não existe). Crie uma nota primeiro.',
+      );
+    }
+    const { object } = await this.json<{ object: { sha: string } }>(ref, 200);
+    const commit = await this.request('GET', `/git/commits/${object.sha}`);
+    const body = await this.json<{ tree: { sha: string } }>(commit, 200);
+    return { commitSha: object.sha, treeSha: body.tree.sha };
+  }
+
+  private async treeShas(treeSha: string): Promise<Map<string, string>> {
+    const response = await this.request('GET', `/git/trees/${treeSha}?recursive=1`);
+    const body = await this.json<TreeResponse>(response, 200);
+    if (body.truncated) throw new TooLargeError('O vault tem arquivos demais para esta operação.');
+    return new Map(
+      body.tree.filter((item) => item.type === 'blob').map((item) => [item.path, item.sha]),
+    );
+  }
+
+  private async post<T>(path: string, body: unknown): Promise<T> {
+    const response = await this.request('POST', path, body);
+    return this.json<T>(response, 201);
+  }
+
+  private async readRef(key: string, ref: string): Promise<VaultFile> {
     const response = await this.request(
       'GET',
-      `/contents/${encodePath(key)}?ref=${encodeURIComponent(this.options.branch)}`,
+      `/contents/${encodePath(key)}?ref=${encodeURIComponent(ref)}`,
     );
     if (response.status === 404) throw new NotFoundError();
     const body = await this.json<ContentResponse | ContentResponse[]>(response, 200);
@@ -203,7 +302,11 @@ export class GitHubVaultStore implements VaultStore {
   }
 
   /** Executa a requisição; GETs são repetidos em falhas transitórias. Erros comuns viram `VaultError`. */
-  private async request(method: 'GET' | 'PUT', path: string, body?: unknown): Promise<Response> {
+  private async request(
+    method: 'GET' | 'PUT' | 'POST' | 'PATCH',
+    path: string,
+    body?: unknown,
+  ): Promise<Response> {
     const attempts = method === 'GET' ? this.retryDelaysMs.length + 1 : 1;
     let lastError: VaultError = new VaultUnavailableError();
     for (let attempt = 0; attempt < attempts; attempt++) {

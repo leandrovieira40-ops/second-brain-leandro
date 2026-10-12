@@ -31,6 +31,26 @@ export interface WriteResult {
   commitSha: string | null;
 }
 
+/**
+ * Uma alteração de um commit em lote. `expectedSha` é a pré-condição: `null` = o arquivo NÃO pode
+ * existir; um SHA = o arquivo precisa estar exatamente nessa versão.
+ */
+export type BatchChange =
+  | { kind: 'put'; path: string; content: string; expectedSha: string | null }
+  | { kind: 'delete'; path: string; expectedSha: string };
+
+export interface BatchResult {
+  commitSha: string | null;
+}
+
+export interface CommitInfo {
+  sha: string;
+  message: string;
+  /** ISO 8601. */
+  date: string;
+  author: string | null;
+}
+
 export type VaultStoreKind = 'github' | 'fs' | 'memory';
 
 export interface VaultStore {
@@ -45,4 +65,16 @@ export interface VaultStore {
   create(path: string, content: string, options: WriteOptions): Promise<WriteResult>;
   /** Lança `ConflictError` se o SHA atual for diferente de `expectedSha`; `NotFoundError` se sumiu. */
   update(path: string, content: string, options: UpdateOptions): Promise<WriteResult>;
+  /**
+   * Várias alterações num único commit. Todas as pré-condições são verificadas antes de qualquer
+   * escrita; se uma falhar, nada é gravado (`AlreadyExistsError`, `NotFoundError`, `ConflictError`).
+   * No GitHub é atômico (Git Data API); na pasta local, atômico dentro do processo.
+   */
+  commit(changes: readonly BatchChange[], options: WriteOptions): Promise<BatchResult>;
+  /** O adaptador guarda histórico de versões (GitHub sim; pasta local não — use `git log`). */
+  readonly supportsHistory: boolean;
+  /** Commits que alteraram o arquivo, do mais recente para o mais antigo. */
+  history(path: string, limit?: number): Promise<CommitInfo[]>;
+  /** Conteúdo do arquivo como estava em um commit. */
+  readAt(path: string, commitSha: string): Promise<VaultFile>;
 }

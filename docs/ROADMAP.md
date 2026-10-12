@@ -14,8 +14,7 @@ Inspeção do ambiente, arquitetura, ADRs, modelo de segurança e de dados, risc
 ## Fase 1 — Fundação funcional ✅ (falta só a verificação em produção)
 
 - [x] Estrutura da aplicação e tooling estrito (formatação, lint, tipos, testes, build)
-- [ ] CI no GitHub Actions — workflow pronto (`.github/workflows/ci.yml`); passa a rodar quando o
-      código estiver no repositório `second-brain-leandro`
+- [x] CI no GitHub Actions (`.github/workflows/ci.yml`) — primeira execução verde em 12/10/2026
 - [x] Autenticação (senha + sessão), proteção de todas as rotas, cabeçalhos de segurança
 - [x] Porta `VaultStore` com adaptadores GitHub, pasta local e memória; suíte de contrato
 - [x] Leitura, criação e edição de notas Markdown com frontmatter
