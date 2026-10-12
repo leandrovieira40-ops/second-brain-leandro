@@ -1,0 +1,5 @@
+# estado de interface do Obsidian, específico de cada dispositivo
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+.DS_Store
