@@ -6,17 +6,17 @@ no computador você edita um clone (por exemplo, no Obsidian). O Git é o mecani
 
 ## 1. Criar o vault
 
-1. No GitHub, crie um repositório **privado** vazio, por exemplo `second-brain-vault`.
+1. No GitHub, crie um repositório **privado** vazio, por exemplo `second-brain-leandro-vault`.
 2. Copie a estrutura inicial deste projeto e publique:
 
    ```bash
-   git clone git@github.com:<voce>/second-brain-vault.git
-   cp -R second-brain/vault-template/. second-brain-vault/
-   cd second-brain-vault
+   git clone git@github.com:<voce>/second-brain-leandro-vault.git
+   cp -R second-brain-leandro/vault-template/. second-brain-leandro-vault/
+   cd second-brain-leandro-vault
    git add . && git commit -m "Estrutura inicial do vault" && git push
    ```
 
-3. Abra a pasta `second-brain-vault` no Obsidian como um vault.
+3. Abra a pasta `second-brain-leandro-vault` no Obsidian como um vault.
 
 A estrutura (`00-Inbox`, `02-Sources/…`, `03-Permanent-Notes`, …) é apenas um ponto de partida.
 Renomeie ou crie pastas à vontade: a aplicação usa o campo `type` do frontmatter, não o nome das
@@ -36,11 +36,11 @@ Ele é independente desta aplicação; configure "pull on startup" para reduzir 
 
 ## 3. O que acontece em cada tipo de conflito
 
-| Situação | Resultado |
-| --- | --- |
-| Você editou na web uma nota que também mudou no GitHub (push do Obsidian) | A gravação é **recusada**; a interface mostra "Conflito" e oferece: recarregar a versão remota, salvar sua versão como cópia de conflito ou sobrescrever conscientemente |
-| Você editou no Obsidian uma nota que mudou na web | O `git pull` faz merge; se as mesmas linhas mudaram, o Git marca o conflito no arquivo e você resolve no editor |
-| Você usa a interface web **localmente** (`VAULT_STORE=fs`) sobre a mesma pasta do Obsidian | Cada gravação confere o SHA do arquivo em disco; se o Obsidian alterou o arquivo no meio-tempo, a interface mostra "Conflito" em vez de sobrescrever |
+| Situação                                                                                   | Resultado                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Você editou na web uma nota que também mudou no GitHub (push do Obsidian)                  | A gravação é **recusada**; a interface mostra "Conflito" e oferece: recarregar a versão remota, salvar sua versão como cópia de conflito ou sobrescrever conscientemente |
+| Você editou no Obsidian uma nota que mudou na web                                          | O `git pull` faz merge; se as mesmas linhas mudaram, o Git marca o conflito no arquivo e você resolve no editor                                                          |
+| Você usa a interface web **localmente** (`VAULT_STORE=fs`) sobre a mesma pasta do Obsidian | Cada gravação confere o SHA do arquivo em disco; se o Obsidian alterou o arquivo no meio-tempo, a interface mostra "Conflito" em vez de sobrescrever                     |
 
 A aplicação **nunca** usa `force-push` nem reescreve o histórico do vault.
 
@@ -49,7 +49,7 @@ A aplicação **nunca** usa `force-push` nem reescreve o histórico do vault.
 O vault funciona sem a aplicação:
 
 ```bash
-git clone git@github.com:<voce>/second-brain-vault.git   # cópia completa, com histórico
+git clone git@github.com:<voce>/second-brain-leandro-vault.git   # cópia completa, com histórico
 ```
 
 Abra em qualquer editor Markdown (Obsidian, VS Code, Typora). Exportação sem Git: no GitHub,

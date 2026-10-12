@@ -50,17 +50,20 @@ flowchart LR
 
 Linhas tracejadas são componentes planejados (ver [ROADMAP.md](./ROADMAP.md)).
 
-## 2. Estado da implementação (alvo da Fase 1)
+## 2. Estado da implementação (Fase 1)
 
-| Camada | Implementado | Arquivo principal |
-| --- | --- | --- |
-| Configuração validada (Zod) | 🚧 | `src/lib/config/env.ts` |
-| Autenticação (senha scrypt + sessão JWT) | 🚧 | `src/lib/auth/*`, `src/proxy.ts` |
-| Porta de persistência + adaptadores GitHub, pasta local e memória | 🚧 | `src/lib/vault/*` |
-| Domínio de notas (frontmatter, wikilinks, tags, resolução de links, templates) | 🚧 | `src/lib/notes/*` |
-| API de notas (listar, ler, criar, atualizar com controle de concorrência) | 🚧 | `src/app/api/notes/**` |
-| Interface: árvore de pastas, editor, visualização, metadados, status de salvamento | 🚧 | `src/app/(app)/**`, `src/components/**` |
-| Banco de dados, busca, backlinks, grafo, ingestão, IA | ⏳ planejado | [ROADMAP.md](./ROADMAP.md) |
+| Camada                                                                                               | Situação                                                                     | Arquivo principal                           |
+| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------- |
+| Configuração validada (Zod), por grupo (app, auth, vault)                                            | ✅ testado                                                                   | `src/lib/config/env.ts`                     |
+| Autenticação (senha scrypt + sessão JWT em cookie `__Host-`), CSRF, rate limit                       | ✅ testado (unit + E2E)                                                      | `src/lib/auth/*`, `src/proxy.ts`            |
+| CSP com nonce + cabeçalhos de segurança                                                              | ✅ testado (E2E)                                                             | `src/lib/http/csp.ts`, `next.config.ts`     |
+| Porta de persistência + adaptadores GitHub, pasta local e memória                                    | ✅ suíte de contrato; GitHub real **ainda não exercitado** (sem credenciais) | `src/lib/vault/*`                           |
+| Domínio de notas (frontmatter, wikilinks, tags, resolução de links, templates)                       | ✅ testado                                                                   | `src/lib/notes/*`                           |
+| Serviço de notas (árvore, leitura, criação sem sobrescrita, gravação idempotente, cópia de conflito) | ✅ testado                                                                   | `src/lib/services/notes.ts`                 |
+| API de notas                                                                                         | ✅ testado (E2E)                                                             | `src/app/api/notes/**`                      |
+| Salvamento confiável (controlador, rascunho local, conflitos)                                        | ✅ testado (unit + E2E)                                                      | `src/lib/editor/*`, `src/components/note/*` |
+| Interface: árvore, filtro, editor, visualização, metadados, links, tema claro/escuro                 | ✅ testado (E2E)                                                             | `src/app/(app)/**`, `src/components/**`     |
+| Banco de dados, busca, backlinks, grafo, ingestão, IA                                                | ⏳ planejado                                                                 | [ROADMAP.md](./ROADMAP.md)                  |
 
 ## 3. Módulos e fronteiras
 
@@ -69,26 +72,34 @@ src/
 ├── proxy.ts                 # CSP com nonce + bloqueio de rotas sem sessão (1ª linha de defesa)
 ├── app/                     # Rotas (App Router). Sem regra de negócio aqui.
 │   ├── (auth)/login         # Página pública de login
-│   ├── (app)/               # Área autenticada (layout verifica sessão de novo)
-│   └── api/                 # Route Handlers — contrato JSON explícito
+│   ├── (app)/               # Área autenticada (layout verifica a sessão de novo)
+│   │   ├── page.tsx         # Início (indicadores reais do vault)
+│   │   └── note/page.tsx    # Nota: /note?path=<caminho>
+│   └── api/                 # Route Handlers — contrato JSON explícito (Zod)
 ├── components/              # UI (React). Nunca acessa segredos nem o vault diretamente.
+│   └── note/                # Editor, visualização, detalhes, status de salvamento
 └── lib/
-    ├── config/              # Leitura e validação de variáveis de ambiente (server-only)
+    ├── config/              # Variáveis de ambiente (server-only)
     ├── auth/                # Hash de senha, sessão, rate limit, guards
-    ├── http/                # Respostas de erro padronizadas, checagem de origem
+    ├── http/                # Erros padronizados, origem, CSP, esquemas da API
     ├── log/                 # Logger estruturado sem conteúdo de notas
     ├── vault/               # Porta VaultStore + adaptadores (GitHub, FS, memória)
-    └── notes/               # Domínio puro: parsing, links, tags, nomes de arquivo, templates
+    ├── notes/               # Domínio puro: parsing, links, tags, nomes de arquivo, templates
+    ├── services/            # Casos de uso sobre o VaultStore (server-only)
+    ├── editor/              # Controlador de salvamento e rascunhos (navegador, sem React)
+    └── client/              # Chamadas do navegador para a API
 ```
 
-Regras de dependência (verificadas em revisão de código):
+Regras de dependência:
 
-- `lib/notes` é **puro** (sem I/O) e pode rodar no navegador e no servidor.
-- `lib/vault` não conhece React nem Next.js; recebe dependências (ex.: `fetch`) por injeção, o que
-  permite testar contra um GitHub falso e contra o GitHub real com a **mesma suíte de contrato**.
-- `app/api/*` orquestra: valida entrada → autentica → chama `lib/notes/service` → traduz erros.
+- `lib/notes` e `lib/editor` são **puros** (sem I/O de servidor) e testados sem navegador.
+- `lib/vault` não conhece React nem Next.js; recebe `fetch` por injeção, o que permite testar contra
+  um GitHub simulado e contra o GitHub real com a **mesma suíte de contrato**.
+- `app/api/*` orquestra: autentica → valida entrada → chama `lib/services` → traduz erros.
 - Componentes cliente falam somente com `/api/*`. Tokens do GitHub, segredos de sessão e chaves de
-  IA nunca chegam ao bundle do navegador (`server-only` + nenhuma variável `NEXT_PUBLIC_*` sensível).
+  IA nunca chegam ao bundle do navegador (`server-only`, nenhuma variável `NEXT_PUBLIC_*` sensível e
+  verificação automática do bundle na CI: `scripts/check-client-bundle.mjs`).
+- A página de nota usa `?path=` (decodificação única e bem definida) em vez de segmentos de rota.
 
 Módulos futuros entram como novos diretórios em `lib/` (`index/`, `search/`, `ingest/`, `ai/`,
 `jobs/`), cada um atrás de uma interface própria — sem reescrever os existentes.
@@ -99,7 +110,7 @@ Módulos futuros entram como novos diretórios em `lib/` (`index/`, `search/`, `
 
 1. `GET /notes/<caminho>` → `proxy.ts` valida o cookie de sessão (senão redireciona para `/login`).
 2. A página (Server Component) chama `requireSession()` de novo (defesa em profundidade).
-3. `notesService.getNote(path)` → `VaultStore.read(path)` → GitHub Contents API
+3. `NotesService.read(path)` → `VaultStore.read(path)` → GitHub Contents API
    (`GET /repos/{owner}/{repo}/contents/{path}?ref={branch}`), que retorna conteúdo **e** SHA do blob.
 4. O conteúdo bruto (frontmatter incluído) e o SHA vão para o editor; a visualização é renderizada
    no cliente a partir do mesmo texto.
@@ -177,12 +188,12 @@ blob, então reprocessar é idempotente e só o que mudou é reindexado.
 
 ## 5. Ambientes
 
-| Ambiente | Vault | Banco | Autenticação | Observações |
-| --- | --- | --- | --- | --- |
-| Local (`npm run dev`) | Pasta local (`VAULT_STORE=fs`) **ou** repo GitHub de teste | — (Fase 2: Postgres local) | Senha local | Nunca use o vault real para experimentos destrutivos |
-| Testes (Vitest/Playwright) | Fixtures **sintéticas** copiadas para `.e2e-vault/` | — | Senha de teste gerada no próprio teste | Sem rede externa |
-| Preview (Vercel) | Repo GitHub **de teste** | Branch de banco (Neon) | Senha própria + Deployment Protection | Nunca aponte preview para o vault real |
-| Produção (Vercel) | Repo GitHub privado do vault | Banco principal | Senha + (planejado) GitHub OAuth | Sem migrações destrutivas automáticas |
+| Ambiente                   | Vault                                                      | Banco                      | Autenticação                           | Observações                                          |
+| -------------------------- | ---------------------------------------------------------- | -------------------------- | -------------------------------------- | ---------------------------------------------------- |
+| Local (`npm run dev`)      | Pasta local (`VAULT_STORE=fs`) **ou** repo GitHub de teste | — (Fase 2: Postgres local) | Senha local                            | Nunca use o vault real para experimentos destrutivos |
+| Testes (Vitest/Playwright) | Fixtures **sintéticas** copiadas para `.e2e-vault/`        | —                          | Senha de teste gerada no próprio teste | Sem rede externa                                     |
+| Preview (Vercel)           | Repo GitHub **de teste**                                   | Branch de banco (Neon)     | Senha própria + Deployment Protection  | Nunca aponte preview para o vault real               |
+| Produção (Vercel)          | Repo GitHub privado do vault                               | Banco principal            | Senha + (planejado) GitHub OAuth       | Sem migrações destrutivas automáticas                |
 
 O adaptador de pasta local **recusa iniciar na Vercel** (sistema de arquivos efêmero).
 
@@ -200,31 +211,31 @@ Fontes e datas de verificação em [ADR-0004](./ADR/0004-acesso-ao-vault-via-api
 
 ## 7. Riscos técnicos
 
-| Risco | Impacto | Mitigação |
-| --- | --- | --- |
-| Conflito entre edição no Obsidian e na web | Perda de dados | SHA esperado em toda gravação; cópia de conflito; nunca _force-push_ |
-| Ruído de commits por autosave | Histórico difícil de ler; limites secundários | Debounce + intervalo mínimo entre commits; Ctrl+S imediato; trailer `Second-Brain-Origin` |
-| Token do GitHub vazado | Acesso ao vault | Token _fine-grained_ restrito a 1 repositório; só no servidor; rotação documentada |
-| XSS via conteúdo importado | Sequestro de sessão | Markdown sem HTML bruto; CSP com nonce; cookie httpOnly |
-| Prompt injection em fontes (Fase 5) | Exfiltração / ações indevidas | Conteúdo como dado não confiável; IA sem ferramentas privilegiadas; citações validadas |
-| Vault grande (milhares de notas) | Lentidão na árvore | Árvore em 1 chamada; índice no Postgres na Fase 2; paginação no grafo |
-| Custos de IA | Gasto inesperado | Orçamento mensal configurável; registro de uso; modelos menores para tarefas simples |
-| Dependência de fornecedores | Lock-in | Postgres padrão, S3-compatível, IA atrás de interface, Markdown aberto |
-| Evolução rápida do Next.js | Quebras em atualizações | Versões fixadas; atualização deliberada com testes; ADR-0003 |
-| Senha como único fator (Fase 1) | Força bruta | scrypt, rate limit, regra de rate limit no Firewall da Vercel, GitHub OAuth planejado |
+| Risco                                      | Impacto                                       | Mitigação                                                                                 |
+| ------------------------------------------ | --------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Conflito entre edição no Obsidian e na web | Perda de dados                                | SHA esperado em toda gravação; cópia de conflito; nunca _force-push_                      |
+| Ruído de commits por autosave              | Histórico difícil de ler; limites secundários | Debounce + intervalo mínimo entre commits; Ctrl+S imediato; trailer `Second-Brain-Origin` |
+| Token do GitHub vazado                     | Acesso ao vault                               | Token _fine-grained_ restrito a 1 repositório; só no servidor; rotação documentada        |
+| XSS via conteúdo importado                 | Sequestro de sessão                           | Markdown sem HTML bruto; CSP com nonce; cookie httpOnly                                   |
+| Prompt injection em fontes (Fase 5)        | Exfiltração / ações indevidas                 | Conteúdo como dado não confiável; IA sem ferramentas privilegiadas; citações validadas    |
+| Vault grande (milhares de notas)           | Lentidão na árvore                            | Árvore em 1 chamada; índice no Postgres na Fase 2; paginação no grafo                     |
+| Custos de IA                               | Gasto inesperado                              | Orçamento mensal configurável; registro de uso; modelos menores para tarefas simples      |
+| Dependência de fornecedores                | Lock-in                                       | Postgres padrão, S3-compatível, IA atrás de interface, Markdown aberto                    |
+| Evolução rápida do Next.js                 | Quebras em atualizações                       | Versões fixadas; atualização deliberada com testes; ADR-0003                              |
+| Senha como único fator (Fase 1)            | Força bruta                                   | scrypt, rate limit, regra de rate limit no Firewall da Vercel, GitHub OAuth planejado     |
 
 ## 8. Custos recorrentes estimados
 
 Valores de referência coletados em 12/10/2026 — **confira as páginas de preço antes de contratar**.
 
-| Item | Fase | Custo típico (uso pessoal) |
-| --- | --- | --- |
-| Vercel Hobby | 1 | US$ 0 (uso pessoal não comercial; se o uso for profissional/comercial, Pro: US$ 20/mês) |
-| GitHub (repos privados) | 1 | US$ 0 |
-| Neon Postgres Free (1 GB/projeto, 100 CU-h/mês, escala a zero) | 2 | US$ 0; acima disso, cobrança por uso |
-| Armazenamento de objetos (Vercel Blob privado 1 GB grátis ou Cloudflare R2 10 GB grátis) | 4 | US$ 0 no início |
-| Embeddings (ex.: 10 M tokens ≈ vault grande inteiro) | 5 | ≈ US$ 0,20 (modelos de US$ 0,02/1M) — reindexação só do que muda |
-| Chat RAG (8 k tokens de entrada + 1 k de saída por pergunta) | 5 | ≈ US$ 0,001 (Haiku 5.5) · ≈ US$ 0,026 (Sonnet 5.5) · ≈ US$ 0,052 (Opus 5.5) por pergunta |
+| Item                                                                                     | Fase | Custo típico (uso pessoal)                                                               |
+| ---------------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------- |
+| Vercel Hobby                                                                             | 1    | US$ 0 (uso pessoal não comercial; se o uso for profissional/comercial, Pro: US$ 20/mês)  |
+| GitHub (repos privados)                                                                  | 1    | US$ 0                                                                                    |
+| Neon Postgres Free (1 GB/projeto, 100 CU-h/mês, escala a zero)                           | 2    | US$ 0; acima disso, cobrança por uso                                                     |
+| Armazenamento de objetos (Vercel Blob privado 1 GB grátis ou Cloudflare R2 10 GB grátis) | 4    | US$ 0 no início                                                                          |
+| Embeddings (ex.: 10 M tokens ≈ vault grande inteiro)                                     | 5    | ≈ US$ 0,20 (modelos de US$ 0,02/1M) — reindexação só do que muda                         |
+| Chat RAG (8 k tokens de entrada + 1 k de saída por pergunta)                             | 5    | ≈ US$ 0,001 (Haiku 5.5) · ≈ US$ 0,026 (Sonnet 5.5) · ≈ US$ 0,052 (Opus 5.5) por pergunta |
 
 Com 20 perguntas/dia, o chat custa de ≈ US$ 0,80 a ≈ US$ 31/mês dependendo do modelo — por isso o
 modelo é configurável por tarefa e existe orçamento mensal (Fase 5).

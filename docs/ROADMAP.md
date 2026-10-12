@@ -11,22 +11,26 @@ descoberta → produtividade avançada.
 
 Inspeção do ambiente, arquitetura, ADRs, modelo de segurança e de dados, riscos, custos, critérios.
 
-## Fase 1 — Fundação funcional 🚧 (esta entrega)
+## Fase 1 — Fundação funcional ✅ (falta só a verificação em produção)
 
-- [ ] Estrutura da aplicação, tooling estrito, CI
-- [ ] Autenticação (senha + sessão), proteção de todas as rotas, cabeçalhos de segurança
-- [ ] Porta `VaultStore` com adaptadores GitHub, pasta local e memória; suíte de contrato
-- [ ] Leitura, criação e edição de notas Markdown com frontmatter
-- [ ] Editor (CodeMirror 6) e visualização (Markdown + wikilinks resolvidos)
-- [ ] Pastas e navegação (árvore, filtro por nome/caminho)
-- [ ] Salvamento confiável: SHA esperado, rascunho local, autosave limitado, conflitos, status honesto
-- [ ] Painel de metadados, links de saída (com links quebrados) e tags da nota
-- [ ] Testes unitários, de contrato e ponta a ponta
+- [x] Estrutura da aplicação e tooling estrito (formatação, lint, tipos, testes, build)
+- [ ] CI no GitHub Actions — workflow pronto (`.github/workflows/ci.yml`); passa a rodar quando o
+      código estiver no repositório `second-brain-leandro`
+- [x] Autenticação (senha + sessão), proteção de todas as rotas, cabeçalhos de segurança
+- [x] Porta `VaultStore` com adaptadores GitHub, pasta local e memória; suíte de contrato
+- [x] Leitura, criação e edição de notas Markdown com frontmatter
+- [x] Editor (CodeMirror 6) e visualização (Markdown + wikilinks resolvidos)
+- [x] Pastas e navegação (árvore, filtro por nome/caminho)
+- [x] Salvamento confiável: SHA esperado, rascunho local, autosave limitado, conflitos, status honesto
+- [x] Painel de metadados, links de saída (com links quebrados) e tags da nota
+- [x] Testes unitários, de contrato e ponta a ponta
 - [ ] Verificação no ambiente publicado (Vercel + repositório real do vault) — **depende de
       configuração pelo dono** ([DEPLOYMENT.md](./DEPLOYMENT.md))
 
 **Critério:** criar uma nota, salvá-la, fechar a aplicação, reabri-la e encontrar o conteúdo intacto.
-Será coberto por testes E2E contra o adaptador local; a verificação em produção depende da configuração.
+Demonstrado por `e2e/notes.spec.ts` ("criar, salvar, fechar, reabrir…") contra o build de produção
+com o adaptador de pasta local. Falta repetir no ambiente publicado com o GitHub real
+([DEPLOYMENT.md §4](./DEPLOYMENT.md#4-verificação-pós-deploy-obrigatória)).
 
 ## Fase 2 — Experiência de conhecimento
 
@@ -80,15 +84,15 @@ E2E completos, observabilidade, documentação final. Cenários F–J consolidad
 
 ## Mapa dos cenários de aceitação
 
-| Cenário | Descrição | Fase | Situação |
-| --- | --- | --- | --- |
-| A | Captura, tags, relação, busca | 2 | Parcial: criação, tags e links na Fase 1; busca na 2 |
-| B | Importar artigo com resumo revisável | 4–5 | Planejado |
-| C | Nota permanente com fontes visíveis | 5 | Planejado |
-| D | Pergunta à IA com referências clicáveis | 5 | Planejado |
-| E | Sugestão de relação explicada | 3 | Planejado |
-| F | Falha de rede não indica salvamento falso | 1 | Planejado (Fase 1) |
-| G | Alteração externa detectada sem perda | 1–2 | Planejado: detecção na Fase 1, incorporação ao índice na Fase 2 |
-| H | Vault portável fora da aplicação | 1 | Por construção (Markdown no Git); verificação manual em VAULT_SYNC.md |
-| I | Restaurar nota excluída | 2 | Planejado (lixeira + histórico) |
-| J | Não autenticado não acessa; nenhuma chave no navegador | 1 | Planejado (Fase 1) |
+| Cenário | Descrição                                              | Fase | Situação                                                              |
+| ------- | ------------------------------------------------------ | ---- | --------------------------------------------------------------------- |
+| A       | Captura, tags, relação, busca                          | 2    | Parcial: criação, tags e links na Fase 1; busca na 2                  |
+| B       | Importar artigo com resumo revisável                   | 4–5  | Planejado                                                             |
+| C       | Nota permanente com fontes visíveis                    | 5    | Planejado                                                             |
+| D       | Pergunta à IA com referências clicáveis                | 5    | Planejado                                                             |
+| E       | Sugestão de relação explicada                          | 3    | Planejado                                                             |
+| F       | Falha de rede não indica salvamento falso              | 1    | ✅ Testado (E2E)                                                      |
+| G       | Alteração externa detectada sem perda                  | 1–2  | ✅ Detecção de conflito testada (E2E); índice na Fase 2               |
+| H       | Vault portável fora da aplicação                       | 1    | Por construção (Markdown no Git); verificação manual em VAULT_SYNC.md |
+| I       | Restaurar nota excluída                                | 2    | Planejado (lixeira + histórico)                                       |
+| J       | Não autenticado não acessa; nenhuma chave no navegador | 1    | ✅ Testado (E2E + varredura do bundle na CI)                          |
