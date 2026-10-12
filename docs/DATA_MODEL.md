@@ -5,13 +5,13 @@
 Todo dado do sistema pertence a uma de quatro classes. A classe define onde ele vive e como é
 recuperado após uma falha.
 
-| Classe | Onde vive | Exemplos | Recuperação |
-| --- | --- | --- | --- |
-| **Canônico** | Vault (Markdown no GitHub) | Notas, frontmatter, links, notas de fonte, templates | Histórico Git + backup do repositório |
-| **Binário canônico** | Armazenamento de objetos (Fase 4) | PDFs, áudios, imagens grandes | Backup próprio do bucket (não está no Git) |
-| **Derivado** | PostgreSQL (Fase 2+) | Índice de notas, links resolvidos, backlinks, FTS, trechos, embeddings | **Reconstruível** a partir do vault (`reindex`) |
-| **Decisão do usuário não derivável** | Vault (`.second-brain/`) — ver §5 | Sugestões aceitas/rejeitadas, revisões concluídas | Histórico Git |
-| **Operacional** | PostgreSQL | Fila de jobs, uso/custo de IA, estado de sincronização, rate limit | Perda tolerável (backup do banco reduz impacto) |
+| Classe                               | Onde vive                         | Exemplos                                                               | Recuperação                                     |
+| ------------------------------------ | --------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------- |
+| **Canônico**                         | Vault (Markdown no GitHub)        | Notas, frontmatter, links, notas de fonte, templates                   | Histórico Git + backup do repositório           |
+| **Binário canônico**                 | Armazenamento de objetos (Fase 4) | PDFs, áudios, imagens grandes                                          | Backup próprio do bucket (não está no Git)      |
+| **Derivado**                         | PostgreSQL (Fase 2+)              | Índice de notas, links resolvidos, backlinks, FTS, trechos, embeddings | **Reconstruível** a partir do vault (`reindex`) |
+| **Decisão do usuário não derivável** | Vault (`.second-brain/`) — ver §5 | Sugestões aceitas/rejeitadas, revisões concluídas                      | Histórico Git                                   |
+| **Operacional**                      | PostgreSQL                        | Fila de jobs, uso/custo de IA, estado de sincronização, rate limit     | Perda tolerável (backup do banco reduz impacto) |
 
 Regra: se um dado não é derivável e importa para o usuário, ele **não pode existir apenas no banco**.
 
@@ -26,7 +26,7 @@ created: 2026-10-12
 updated: 2026-10-12
 tags: [marketing, estrategia]
 aliases: [Positioning]
-sources: ["[[Positioning (Al Ries e Jack Trout)]]"]
+sources: ['[[Positioning (Al Ries e Jack Trout)]]']
 status: active
 ---
 
@@ -35,16 +35,16 @@ Texto livre em Markdown, com [[Outras Notas]], [[Nota#Seção]], [[Nota|alias]] 
 
 ### Campos comuns (todos opcionais, exceto quando a própria aplicação cria a nota)
 
-| Campo | Tipo | Notas |
-| --- | --- | --- |
-| `id` | ULID | Estável; gerado na criação ([ADR-0012](./ADR/0012-identificadores-datas-e-nomes.md)) |
-| `title` | string | Se ausente, o título é o nome do arquivo |
-| `type` | enum | Ver §3. Se ausente: `note` |
-| `created`, `updated` | `AAAA-MM-DD` | `updated` é ajustado no editor ao salvar, se o campo existir |
-| `tags` | lista de strings | Também reconhecidas `#tags` no corpo |
-| `aliases` | lista de strings | Usadas na resolução de `[[links]]` |
-| `sources` | lista de wikilinks | Fontes que fundamentam a nota |
-| `status` | string | `active`, `draft`, `archived`, `reading`, … (varia por tipo) |
+| Campo                | Tipo               | Notas                                                                                |
+| -------------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| `id`                 | ULID               | Estável; gerado na criação ([ADR-0012](./ADR/0012-identificadores-datas-e-nomes.md)) |
+| `title`              | string             | Se ausente, o título é o nome do arquivo                                             |
+| `type`               | enum               | Ver §3. Se ausente: `note`                                                           |
+| `created`, `updated` | `AAAA-MM-DD`       | `updated` é ajustado no editor ao salvar, se o campo existir                         |
+| `tags`               | lista de strings   | Também reconhecidas `#tags` no corpo                                                 |
+| `aliases`            | lista de strings   | Usadas na resolução de `[[links]]`                                                   |
+| `sources`            | lista de wikilinks | Fontes que fundamentam a nota                                                        |
+| `status`             | string             | `active`, `draft`, `archived`, `reading`, … (varia por tipo)                         |
 
 Campos desconhecidos são preservados intocados. YAML inválido não impede salvar; a interface avisa.
 
@@ -65,6 +65,7 @@ Obsidian (_callouts_), legível sem a aplicação:
 > …
 
 ## Minha interpretação
+
 …
 ```
 
@@ -73,21 +74,21 @@ Notas geradas ou alteradas pela IA registram no frontmatter `generated_by` (prov
 
 ## 3. Tipos de nota e campos específicos
 
-| `type` | Pasta padrão | Campos adicionais (todos opcionais) |
-| --- | --- | --- |
-| `inbox` | `00-Inbox` | — (captura rápida, sem classificação obrigatória) |
-| `fleeting` | `01-Fleeting-Notes` | — |
-| `source` | `02-Sources/<subtipo>` | `source_type` (book, article, website, newsletter, paper, video, podcast, course, conversation, document), `author`, `url`, `published`, `captured`, `publisher` |
-| `book` | `02-Sources/Books` | `author`, `publisher`, `year`, `isbn`, `reading_status` (to-read, reading, finished, abandoned), `started`, `finished`, `rating` (1–5), `metadata_origin` (user, external:<serviço>) |
-| `permanent` | `03-Permanent-Notes` | `sources` |
-| `concept` | `04-Concepts` | `aliases`, `sources` |
-| `project` | `05-Projects` | `project_status` (active, paused, done, dropped), `goal`, `started`, `due` |
-| `area` | `06-Areas` | — |
-| `moc` | `07-Maps-of-Content` | — |
-| `daily` | `08-Daily-Notes` | `date` |
-| `review` | `09-Reviews` | `period` |
-| `template` | `10-Templates` | — (não aparece em buscas por padrão) |
-| `note` | qualquer | Tipo padrão quando ausente |
+| `type`      | Pasta padrão           | Campos adicionais (todos opcionais)                                                                                                                                                  |
+| ----------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `inbox`     | `00-Inbox`             | — (captura rápida, sem classificação obrigatória)                                                                                                                                    |
+| `fleeting`  | `01-Fleeting-Notes`    | —                                                                                                                                                                                    |
+| `source`    | `02-Sources/<subtipo>` | `source_type` (book, article, website, newsletter, paper, video, podcast, course, conversation, document), `author`, `url`, `published`, `captured`, `publisher`                     |
+| `book`      | `02-Sources/Books`     | `author`, `publisher`, `year`, `isbn`, `reading_status` (to-read, reading, finished, abandoned), `started`, `finished`, `rating` (1–5), `metadata_origin` (user, external:<serviço>) |
+| `permanent` | `03-Permanent-Notes`   | `sources`                                                                                                                                                                            |
+| `concept`   | `04-Concepts`          | `aliases`, `sources`                                                                                                                                                                 |
+| `project`   | `05-Projects`          | `project_status` (active, paused, done, dropped), `goal`, `started`, `due`                                                                                                           |
+| `area`      | `06-Areas`             | —                                                                                                                                                                                    |
+| `moc`       | `07-Maps-of-Content`   | —                                                                                                                                                                                    |
+| `daily`     | `08-Daily-Notes`       | `date`                                                                                                                                                                               |
+| `review`    | `09-Reviews`           | `period`                                                                                                                                                                             |
+| `template`  | `10-Templates`         | — (não aparece em buscas por padrão)                                                                                                                                                 |
+| `note`      | qualquer               | Tipo padrão quando ausente                                                                                                                                                           |
 
 Citações em notas de livro usam o callout `[!quote]` com `p.` quando a página for conhecida — páginas
 nunca são inventadas. Dados bibliográficos obtidos de integrações externas levam `metadata_origin`.

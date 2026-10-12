@@ -13,24 +13,24 @@ Este documento descreve o modelo de ameaças, os controles **implementados** (�
 
 ## 2. Modelo de ameaças
 
-| Ameaça | Vetor | Controles |
-| --- | --- | --- |
-| Acesso não autenticado | Internet pública (domínio de produção) | ✅ Sessão obrigatória no `proxy.ts` **e** em cada página/API; ✅ `/api/health` público não revela nada |
-| Força bruta de senha | `POST /api/auth/login` | ✅ scrypt (N=2¹⁵); ✅ rate limit por IP e global; ✅ atraso fixo; ⏳ regra no Firewall da Vercel; ⏳ GitHub OAuth (2FA) |
-| Roubo de sessão | XSS, rede | ✅ Cookie `__Host-`, `HttpOnly`, `Secure`, `SameSite=Lax`; ✅ CSP com nonce e `strict-dynamic`; ✅ HSTS |
-| XSS por conteúdo de nota/fonte importada | Markdown malicioso | ✅ Renderização sem HTML bruto; ✅ links `javascript:` neutralizados; ✅ CSP |
-| CSRF | Site de terceiros | ✅ `SameSite=Lax`; ✅ mutações exigem JSON + `Origin`/`Sec-Fetch-Site` do próprio host |
-| Clickjacking | iframe | ✅ `frame-ancestors 'none'` + `X-Frame-Options: DENY` |
-| Path traversal / escrita fora do vault | Caminho manipulado na API | ✅ Validação estrita de caminhos; ✅ adaptador local resolve e confina ao diretório raiz (inclusive symlinks) |
-| Vazamento de token do GitHub | Bundle JS, logs, erros, commits | ✅ `server-only`; ✅ sem `NEXT_PUBLIC_*` sensível; ✅ erros do GitHub nunca repassados; ✅ logs sem cabeçalhos; ✅ `.gitignore` de `.env*` |
-| Token com permissões excessivas | Configuração | ✅ Documentado: _fine-grained_, 1 repositório, `Contents: RW` + `Metadata: R` |
-| Sobrescrita silenciosa / perda de dados | Concorrência, falhas | ✅ SHA esperado em toda gravação; ✅ status honesto; ✅ rascunho local; ✅ sem _force-push_ |
-| SSRF na captura de URLs | Fase 4 | ⏳ Allowlist de esquemas (http/https), bloqueio de IPs privados/link-local/metadados após resolução DNS, limite de tamanho e tempo, sem seguir redirecionamentos para redes internas |
-| Upload malicioso | Fase 4 | ⏳ Limite de tamanho, verificação de tipo por assinatura (magic bytes), armazenamento privado, nunca servido inline como HTML |
-| Prompt injection / exfiltração via IA | Fase 5 | ⏳ Conteúdo recuperado tratado como dado; IA sem ferramentas de escrita/rede; propostas revisáveis; contexto mínimo |
-| Abuso de custo (IA) | Fase 5 | ⏳ Orçamento mensal com corte; rate limit por operação |
-| Dependência vulnerável | Supply chain | ✅ Versões exatas + lockfile; ✅ `npm audit` no CI; ✅ atualização deliberada |
-| Indexação pública | Buscadores | ✅ `X-Robots-Tag: noindex` + `robots.txt` bloqueando tudo |
+| Ameaça                                   | Vetor                                  | Controles                                                                                                                                                                            |
+| ---------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Acesso não autenticado                   | Internet pública (domínio de produção) | ✅ Sessão obrigatória no `proxy.ts` **e** em cada página/API; ✅ `/api/health` público não revela nada                                                                               |
+| Força bruta de senha                     | `POST /api/auth/login`                 | ✅ scrypt (N=2¹⁵); ✅ rate limit por IP e global; ✅ atraso fixo; ⏳ regra no Firewall da Vercel; ⏳ GitHub OAuth (2FA)                                                              |
+| Roubo de sessão                          | XSS, rede                              | ✅ Cookie `__Host-`, `HttpOnly`, `Secure`, `SameSite=Lax`; ✅ CSP com nonce e `strict-dynamic`; ✅ HSTS                                                                              |
+| XSS por conteúdo de nota/fonte importada | Markdown malicioso                     | ✅ Renderização sem HTML bruto; ✅ links `javascript:` neutralizados; ✅ CSP                                                                                                         |
+| CSRF                                     | Site de terceiros                      | ✅ `SameSite=Lax`; ✅ mutações exigem JSON + `Origin`/`Sec-Fetch-Site` do próprio host                                                                                               |
+| Clickjacking                             | iframe                                 | ✅ `frame-ancestors 'none'` + `X-Frame-Options: DENY`                                                                                                                                |
+| Path traversal / escrita fora do vault   | Caminho manipulado na API              | ✅ Validação estrita de caminhos; ✅ adaptador local resolve e confina ao diretório raiz (inclusive symlinks)                                                                        |
+| Vazamento de token do GitHub             | Bundle JS, logs, erros, commits        | ✅ `server-only`; ✅ sem `NEXT_PUBLIC_*` sensível; ✅ erros do GitHub nunca repassados; ✅ logs sem cabeçalhos; ✅ `.gitignore` de `.env*`                                           |
+| Token com permissões excessivas          | Configuração                           | ✅ Documentado: _fine-grained_, 1 repositório, `Contents: RW` + `Metadata: R`                                                                                                        |
+| Sobrescrita silenciosa / perda de dados  | Concorrência, falhas                   | ✅ SHA esperado em toda gravação; ✅ status honesto; ✅ rascunho local; ✅ sem _force-push_                                                                                          |
+| SSRF na captura de URLs                  | Fase 4                                 | ⏳ Allowlist de esquemas (http/https), bloqueio de IPs privados/link-local/metadados após resolução DNS, limite de tamanho e tempo, sem seguir redirecionamentos para redes internas |
+| Upload malicioso                         | Fase 4                                 | ⏳ Limite de tamanho, verificação de tipo por assinatura (magic bytes), armazenamento privado, nunca servido inline como HTML                                                        |
+| Prompt injection / exfiltração via IA    | Fase 5                                 | ⏳ Conteúdo recuperado tratado como dado; IA sem ferramentas de escrita/rede; propostas revisáveis; contexto mínimo                                                                  |
+| Abuso de custo (IA)                      | Fase 5                                 | ⏳ Orçamento mensal com corte; rate limit por operação                                                                                                                               |
+| Dependência vulnerável                   | Supply chain                           | ✅ Versões exatas + lockfile; ✅ `npm audit` no CI; ✅ atualização deliberada                                                                                                        |
+| Indexação pública                        | Buscadores                             | ✅ `X-Robots-Tag: noindex` + `robots.txt` bloqueando tudo                                                                                                                            |
 
 ## 3. Cabeçalhos de segurança
 
@@ -51,12 +51,12 @@ Definidos em `next.config.ts` (estáticos) e `src/proxy.ts` (CSP por requisiçã
 
 ## 5. Dados enviados a terceiros
 
-| Destino | O quê | Quando |
-| --- | --- | --- |
-| GitHub | Conteúdo completo das notas | Sempre (é o armazenamento canônico) |
-| Vercel | Tráfego HTTP (TLS terminado na Vercel), logs de função sem conteúdo | Sempre |
-| Neon (Fase 2) | Metadados, texto indexado, embeddings | Quando o banco estiver ativo |
-| Provedor de IA (Fase 5) | Somente os trechos recuperados para a operação + a pergunta | Apenas em ações de IA, que podem ser desligadas |
+| Destino                 | O quê                                                               | Quando                                          |
+| ----------------------- | ------------------------------------------------------------------- | ----------------------------------------------- |
+| GitHub                  | Conteúdo completo das notas                                         | Sempre (é o armazenamento canônico)             |
+| Vercel                  | Tráfego HTTP (TLS terminado na Vercel), logs de função sem conteúdo | Sempre                                          |
+| Neon (Fase 2)           | Metadados, texto indexado, embeddings                               | Quando o banco estiver ativo                    |
+| Provedor de IA (Fase 5) | Somente os trechos recuperados para a operação + a pergunta         | Apenas em ações de IA, que podem ser desligadas |
 
 ## 6. Procedimentos
 
@@ -70,6 +70,7 @@ openssl rand -base64 48          # valor para AUTH_SECRET
 ### Criar o token do GitHub (vault)
 
 GitHub → Settings → Developer settings → Fine-grained tokens → _Generate new token_:
+
 - Resource owner: sua conta · Repository access: **Only select repositories** → apenas o vault.
 - Repository permissions: **Contents: Read and write** (Metadata: Read é automático).
 - Expiração: defina uma data (ex.: 90 dias) e um lembrete de rotação.

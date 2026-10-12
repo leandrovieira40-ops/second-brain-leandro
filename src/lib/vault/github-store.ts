@@ -11,7 +11,14 @@ import {
   VaultUnavailableError,
 } from './errors';
 import { normalizeVaultPath } from './paths';
-import type { UpdateOptions, VaultEntry, VaultFile, VaultStore, WriteOptions, WriteResult } from './types';
+import type {
+  UpdateOptions,
+  VaultEntry,
+  VaultFile,
+  VaultStore,
+  WriteOptions,
+  WriteResult,
+} from './types';
 
 export interface GitHubVaultStoreOptions {
   owner: string;
@@ -79,11 +86,15 @@ export class GitHubVaultStore implements VaultStore {
     );
     if (response.status === 409) return []; // repositório vazio (sem commits)
     if (response.status === 404) {
-      throw new VaultConfigError('Repositório ou branch do vault não encontrado (ou o token não tem acesso).');
+      throw new VaultConfigError(
+        'Repositório ou branch do vault não encontrado (ou o token não tem acesso).',
+      );
     }
     const body = await this.json<TreeResponse>(response, 200);
     if (body.truncated) {
-      throw new TooLargeError('O vault tem arquivos demais para listar de uma vez (limite da API do GitHub).');
+      throw new TooLargeError(
+        'O vault tem arquivos demais para listar de uma vez (limite da API do GitHub).',
+      );
     }
     return body.tree
       .filter((item) => item.type === 'blob')
@@ -123,22 +134,35 @@ export class GitHubVaultStore implements VaultStore {
     // o GitHub recusa (422) se o arquivo passar a existir.
     for (let attempt = 0; ; attempt++) {
       const response = await this.request('PUT', `/contents/${encodePath(key)}`, payload);
-      if (response.status === 201 || response.status === 200) return this.writeResult(key, response);
+      if (response.status === 201 || response.status === 200)
+        return this.writeResult(key, response);
       if (response.status === 422) throw new AlreadyExistsError();
       if (response.status === 409 && attempt < 2) continue;
       if (response.status === 404) {
-        throw new VaultConfigError('Repositório ou branch do vault não encontrado (ou o token não tem acesso).');
+        throw new VaultConfigError(
+          'Repositório ou branch do vault não encontrado (ou o token não tem acesso).',
+        );
       }
       throw await this.unexpected(response);
     }
   }
 
-  async update(path: string, content: string, { message, expectedSha }: UpdateOptions): Promise<WriteResult> {
+  async update(
+    path: string,
+    content: string,
+    { message, expectedSha }: UpdateOptions,
+  ): Promise<WriteResult> {
     const key = normalizeVaultPath(path);
-    const payload = { message, content: toBase64(content), sha: expectedSha, branch: this.options.branch };
+    const payload = {
+      message,
+      content: toBase64(content),
+      sha: expectedSha,
+      branch: this.options.branch,
+    };
     for (let attempt = 0; ; attempt++) {
       const response = await this.request('PUT', `/contents/${encodePath(key)}`, payload);
-      if (response.status === 200 || response.status === 201) return this.writeResult(key, response);
+      if (response.status === 200 || response.status === 201)
+        return this.writeResult(key, response);
       if (response.status !== 409 && response.status !== 422 && response.status !== 404) {
         throw await this.unexpected(response);
       }
@@ -147,7 +171,8 @@ export class GitHubVaultStore implements VaultStore {
       const currentSha = await this.currentSha(key);
       if (currentSha === null) throw new NotFoundError('A nota foi removida ou movida no vault.');
       if (currentSha !== expectedSha) throw new ConflictError(currentSha);
-      if (attempt >= 2) throw new VaultUnavailableError('Não foi possível gravar após várias tentativas.');
+      if (attempt >= 2)
+        throw new VaultUnavailableError('Não foi possível gravar após várias tentativas.');
     }
   }
 
@@ -163,7 +188,10 @@ export class GitHubVaultStore implements VaultStore {
   private async readBlob(sha: string): Promise<Uint8Array> {
     const response = await this.request('GET', `/git/blobs/${encodeURIComponent(sha)}`);
     if (response.status === 404) throw new NotFoundError();
-    const body = await this.json<{ content: string; encoding: string; size: number }>(response, 200);
+    const body = await this.json<{ content: string; encoding: string; size: number }>(
+      response,
+      200,
+    );
     if (body.size > MAX_READ_BYTES) throw new TooLargeError();
     if (body.encoding !== 'base64') throw new UnsupportedContentError();
     return Buffer.from(body.content, 'base64');
@@ -196,7 +224,9 @@ export class GitHubVaultStore implements VaultStore {
           signal: AbortSignal.timeout(this.timeoutMs),
         });
       } catch {
-        lastError = new VaultUnavailableError('Não foi possível falar com o GitHub (rede ou tempo esgotado).');
+        lastError = new VaultUnavailableError(
+          'Não foi possível falar com o GitHub (rede ou tempo esgotado).',
+        );
         continue;
       }
       const mapped = classify(response);
@@ -222,17 +252,22 @@ export class GitHubVaultStore implements VaultStore {
 function classify(response: Response): VaultError | null {
   const { status, headers } = response;
   if (status === 401) return new VaultConfigError('Token do GitHub inválido ou expirado.');
-  if (status === 429 || (status === 403 && (headers.get('retry-after') || headers.get('x-ratelimit-remaining') === '0'))) {
+  if (
+    status === 429 ||
+    (status === 403 && (headers.get('retry-after') || headers.get('x-ratelimit-remaining') === '0'))
+  ) {
     const retryAfter = Number(headers.get('retry-after'));
     const reset = Number(headers.get('x-ratelimit-reset'));
-    const seconds = Number.isFinite(retryAfter) && retryAfter > 0
-      ? retryAfter
-      : Number.isFinite(reset) && reset > 0
-        ? Math.max(0, Math.ceil(reset - Date.now() / 1000))
-        : null;
+    const seconds =
+      Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter
+        : Number.isFinite(reset) && reset > 0
+          ? Math.max(0, Math.ceil(reset - Date.now() / 1000))
+          : null;
     return new VaultRateLimitedError(seconds);
   }
-  if (status === 403) return new VaultConfigError('O token do GitHub não tem permissão para o repositório do vault.');
+  if (status === 403)
+    return new VaultConfigError('O token do GitHub não tem permissão para o repositório do vault.');
   if (status >= 500) return new VaultUnavailableError(`GitHub indisponível (HTTP ${status}).`);
   return null;
 }

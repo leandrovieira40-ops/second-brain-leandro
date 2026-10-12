@@ -25,7 +25,11 @@ export function parseWikilinkInner(inner: string): Pick<Wikilink, 'target' | 'su
   let alias: string | null = null;
   if (pipe !== -1) {
     destination = inner.slice(0, pipe);
-    alias = inner.slice(pipe).replace(/^\\?\|/, '').trim() || null;
+    alias =
+      inner
+        .slice(pipe)
+        .replace(/^\\?\|/, '')
+        .trim() || null;
   }
   const hash = destination.indexOf('#');
   const target = (hash === -1 ? destination : destination.slice(0, hash)).trim().replace(/\\$/, '');

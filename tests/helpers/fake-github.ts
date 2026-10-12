@@ -20,7 +20,9 @@ export interface FakeGitHub {
 const blobSha = (bytes: Buffer) =>
   createHash('sha1').update(`blob ${bytes.byteLength}\0`).update(bytes).digest('hex');
 
-export function createFakeGitHub(options: { owner?: string; repo?: string; branch?: string; token?: string } = {}): FakeGitHub {
+export function createFakeGitHub(
+  options: { owner?: string; repo?: string; branch?: string; token?: string } = {},
+): FakeGitHub {
   const owner = options.owner ?? 'dono';
   const repo = options.repo ?? 'vault';
   const branch = options.branch ?? 'main';
@@ -39,22 +41,30 @@ export function createFakeGitHub(options: { owner?: string; repo?: string; branc
       state.commitCount++;
     },
     fetch: async (input, init) => {
-      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+      const url = new URL(
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+      );
       const method = (init?.method ?? 'GET').toUpperCase();
       const headers = new Headers(init?.headers);
-      state.requests.push({ method, url: url.pathname + url.search, auth: headers.get('authorization') });
+      state.requests.push({
+        method,
+        url: url.pathname + url.search,
+        auth: headers.get('authorization'),
+      });
 
       const failure = state.failures.shift();
       if (failure === 'network') throw new TypeError('fetch failed');
       if (typeof failure === 'number') return json(failure, { message: 'falha simulada' });
 
-      if (headers.get('authorization') !== `Bearer ${token}`) return json(401, { message: 'Bad credentials' });
+      if (headers.get('authorization') !== `Bearer ${token}`)
+        return json(401, { message: 'Bad credentials' });
       const prefix = `/repos/${owner}/${repo}`;
       if (!url.pathname.startsWith(prefix)) return json(404, { message: 'Not Found' });
       const rest = url.pathname.slice(prefix.length);
 
       if (method === 'GET' && rest.startsWith('/git/trees/')) {
-        if (decodeURIComponent(rest.slice('/git/trees/'.length)) !== branch) return json(404, { message: 'Not Found' });
+        if (decodeURIComponent(rest.slice('/git/trees/'.length)) !== branch)
+          return json(404, { message: 'Not Found' });
         if (files.size === 0) return json(409, { message: 'Git Repository is empty.' });
         const tree = [...files.entries()].map(([path, bytes]) => ({
           path,
@@ -68,13 +78,18 @@ export function createFakeGitHub(options: { owner?: string; repo?: string; branc
       if (method === 'GET' && rest.startsWith('/git/blobs/')) {
         const bytes = blobs.get(rest.slice('/git/blobs/'.length));
         if (!bytes) return json(404, { message: 'Not Found' });
-        return json(200, { content: bytes.toString('base64'), encoding: 'base64', size: bytes.byteLength });
+        return json(200, {
+          content: bytes.toString('base64'),
+          encoding: 'base64',
+          size: bytes.byteLength,
+        });
       }
 
       if (rest.startsWith('/contents/')) {
         const path = rest.slice('/contents/'.length).split('/').map(decodeURIComponent).join('/');
         if (method === 'GET') {
-          if (url.searchParams.get('ref') !== branch) return json(404, { message: 'No commit found for the ref' });
+          if (url.searchParams.get('ref') !== branch)
+            return json(404, { message: 'No commit found for the ref' });
           const bytes = files.get(path);
           if (!bytes) {
             const isDir = [...files.keys()].some((p) => p.startsWith(`${path}/`));
@@ -92,11 +107,17 @@ export function createFakeGitHub(options: { owner?: string; repo?: string; branc
           });
         }
         if (method === 'PUT') {
-          const body = JSON.parse(String(init?.body)) as { content: string; sha?: string; branch?: string; message: string };
+          const body = JSON.parse(String(init?.body)) as {
+            content: string;
+            sha?: string;
+            branch?: string;
+            message: string;
+          };
           if (body.branch !== branch) return json(404, { message: 'Branch not found' });
           if (!body.message) return json(422, { message: 'message is required' });
           const existing = files.get(path);
-          if (existing && !body.sha) return json(422, { message: 'Invalid request.\n\n"sha" wasn\'t supplied.' });
+          if (existing && !body.sha)
+            return json(422, { message: 'Invalid request.\n\n"sha" wasn\'t supplied.' });
           if (!existing && body.sha) return json(404, { message: 'Not Found' });
           if (existing && body.sha !== blobSha(existing)) {
             return json(409, { message: `${path} does not match ${body.sha}` });
@@ -118,5 +139,8 @@ export function createFakeGitHub(options: { owner?: string; repo?: string; branc
 }
 
 function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
 }

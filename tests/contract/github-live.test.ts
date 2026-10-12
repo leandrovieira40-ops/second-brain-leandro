@@ -23,7 +23,10 @@ if (repo && token) {
       prefix,
       writeExternal: async (path, content) => {
         const current = await store.read(path);
-        await store.update(path, content, { message: 'alteração externa (teste)', expectedSha: current.sha });
+        await store.update(path, content, {
+          message: 'alteração externa (teste)',
+          expectedSha: current.sha,
+        });
       },
     };
   });

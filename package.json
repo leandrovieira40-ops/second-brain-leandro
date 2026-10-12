@@ -1,5 +1,5 @@
 {
-  "name": "second-brain",
+  "name": "second-brain-leandro",
   "version": "0.1.0",
   "private": true,
   "description": "Sistema pessoal de conhecimento baseado em Markdown, Git e IA fundamentada em fontes.",
@@ -24,6 +24,7 @@
   "dependencies": {
     "@codemirror/commands": "6.11.1",
     "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/lang-yaml": "6.1.3",
     "@codemirror/language": "6.12.4",
     "@codemirror/language-data": "6.5.2",
     "@codemirror/state": "6.7.6",
@@ -34,7 +35,7 @@
     "clsx": "2.1.1",
     "jose": "6.2.12",
     "lucide-react": "1.48.0",
-    "next": "16.3.6",
+    "next": "16.3.8",
     "next-themes": "0.4.6",
     "radix-ui": "1.6.7",
     "react": "19.3.0",
@@ -56,7 +57,7 @@
     "@types/react-dom": "19.3.0",
     "@vitest/coverage-v8": "4.1.11",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.6",
+    "eslint-config-next": "16.3.8",
     "postcss": "8.5.28",
     "prettier": "3.9.9",
     "prettier-plugin-tailwindcss": "0.8.1",

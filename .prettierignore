@@ -6,3 +6,6 @@ test-results
 .e2e-vault
 package-lock.json
 next-env.d.ts
+# conteúdo exato importa (testes e templates do Obsidian com {{placeholders}})
+tests/fixtures
+vault-template

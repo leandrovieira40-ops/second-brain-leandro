@@ -40,7 +40,9 @@ describe('FsVaultStore — garantias específicas', () => {
     const store = new FsVaultStore(root, {});
 
     await expect(store.read('atalho/segredo.md')).rejects.toBeInstanceOf(NotFoundError);
-    await expect(store.create('atalho/novo.md', 'x', { message: 'm' })).rejects.toBeInstanceOf(NotFoundError);
+    await expect(store.create('atalho/novo.md', 'x', { message: 'm' })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
     await expect(store.read('link.md')).rejects.toThrow();
     expect((await store.list()).map((e) => e.path)).toEqual([]);
     expect(await readFile(nodePath.join(outside, 'segredo.md'), 'utf8')).toBe('segredo');

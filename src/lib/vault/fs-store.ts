@@ -11,7 +11,14 @@ import {
   VaultConfigError,
 } from './errors';
 import { normalizeVaultPath } from './paths';
-import type { UpdateOptions, VaultEntry, VaultFile, VaultStore, WriteOptions, WriteResult } from './types';
+import type {
+  UpdateOptions,
+  VaultEntry,
+  VaultFile,
+  VaultStore,
+  WriteOptions,
+  WriteResult,
+} from './types';
 
 const MAX_READ_BYTES = 5 * 1024 * 1024;
 
@@ -32,7 +39,8 @@ export class FsVaultStore implements VaultStore {
         'O vault em pasta local não funciona na Vercel (sistema de arquivos efêmero). Use VAULT_STORE=github.',
       );
     }
-    if (!nodePath.isAbsolute(root)) throw new VaultConfigError('VAULT_FS_ROOT deve ser um caminho absoluto.');
+    if (!nodePath.isAbsolute(root))
+      throw new VaultConfigError('VAULT_FS_ROOT deve ser um caminho absoluto.');
     this.root = nodePath.resolve(root);
     this.description = 'fs';
   }
@@ -50,7 +58,11 @@ export class FsVaultStore implements VaultStore {
         } else if (item.isFile()) {
           const full = nodePath.join(dir, item.name);
           const bytes = await fs.readFile(full);
-          entries.push({ path: `${prefix}${item.name}`, sha: gitBlobSha(bytes), size: bytes.byteLength });
+          entries.push({
+            path: `${prefix}${item.name}`,
+            sha: gitBlobSha(bytes),
+            size: bytes.byteLength,
+          });
         }
       }
     };
@@ -62,7 +74,12 @@ export class FsVaultStore implements VaultStore {
     const { relative, absolute } = await this.resolve(path);
     const bytes = await this.readBytes(absolute);
     if (!bytes) throw new NotFoundError();
-    return { path: relative, content: decodeText(bytes), sha: gitBlobSha(bytes), size: bytes.byteLength };
+    return {
+      path: relative,
+      content: decodeText(bytes),
+      sha: gitBlobSha(bytes),
+      size: bytes.byteLength,
+    };
   }
 
   async create(path: string, content: string, _options: WriteOptions): Promise<WriteResult> {
@@ -81,7 +98,11 @@ export class FsVaultStore implements VaultStore {
     });
   }
 
-  async update(path: string, content: string, { expectedSha }: UpdateOptions): Promise<WriteResult> {
+  async update(
+    path: string,
+    content: string,
+    { expectedSha }: UpdateOptions,
+  ): Promise<WriteResult> {
     const { relative, absolute } = await this.resolve(path);
     return this.withLock(absolute, async () => {
       const current = await this.readBytes(absolute);
@@ -152,7 +173,8 @@ export class FsVaultStore implements VaultStore {
   private async readBytes(absolute: string): Promise<Buffer | null> {
     try {
       const stat = await fs.lstat(absolute);
-      if (stat.isSymbolicLink() || !stat.isFile()) throw new UnsupportedContentError('Não é um arquivo comum.');
+      if (stat.isSymbolicLink() || !stat.isFile())
+        throw new UnsupportedContentError('Não é um arquivo comum.');
       if (stat.size > MAX_READ_BYTES) throw new TooLargeError();
       return await fs.readFile(absolute);
     } catch (error) {

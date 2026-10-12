@@ -17,7 +17,12 @@ export function maskNonProse(markdown: string): string {
     const lineEnd = offset + line.length;
     const match = /^ {0,3}(`{3,}|~{3,})/.exec(line);
     if (fence) {
-      if (match && match[1]![0] === fence.char && match[1]!.length >= fence.length && line.trim() === match[1]) {
+      if (
+        match &&
+        match[1]![0] === fence.char &&
+        match[1]!.length >= fence.length &&
+        line.trim() === match[1]
+      ) {
         blank(fenceStart, lineEnd);
         fence = null;
       }

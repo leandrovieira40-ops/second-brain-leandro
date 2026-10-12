@@ -33,8 +33,7 @@ const BODY: Partial<Record<NoteType, string>> = {
   permanent: '## Ideia\n\n## Por que importa\n\n## Conexões\n\n## Fontes\n',
   concept: '## Definição\n\n## Exemplos\n\n## Relações\n',
   source: '## Resumo (meu)\n\n## Ideias centrais\n\n## Citações\n\n## Aplicações práticas\n',
-  book:
-    '## Resumo\n\n## Principais ideias\n\n## Citações\n\n## Aplicações práticas\n\n## Perguntas ainda não respondidas\n',
+  book: '## Resumo\n\n## Principais ideias\n\n## Citações\n\n## Aplicações práticas\n\n## Perguntas ainda não respondidas\n',
   project:
     '## Contexto\n\n## Objetivos\n\n## Hipóteses\n\n## Decisões\n\n## Resultados\n\n## Lições aprendidas\n\n## Próximas ações\n',
 };

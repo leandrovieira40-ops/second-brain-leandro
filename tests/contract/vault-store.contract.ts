@@ -40,7 +40,9 @@ export function describeVaultStoreContract(name: string, setup: () => Promise<Co
       const { store, prefix } = await setup();
       const path = `${prefix}existe.md`;
       await store.create(path, 'original', message);
-      await expect(store.create(path, 'outra coisa', message)).rejects.toBeInstanceOf(AlreadyExistsError);
+      await expect(store.create(path, 'outra coisa', message)).rejects.toBeInstanceOf(
+        AlreadyExistsError,
+      );
       expect((await store.read(path)).content).toBe('original');
     });
 
@@ -58,7 +60,9 @@ export function describeVaultStoreContract(name: string, setup: () => Promise<Co
       const path = `${prefix}concorrente.md`;
       const { sha: v1 } = await store.create(path, 'v1', message);
       await store.update(path, 'v2 (outra aba)', { ...message, expectedSha: v1 });
-      const error = await store.update(path, 'v2 (esta aba)', { ...message, expectedSha: v1 }).catch((e) => e);
+      const error = await store
+        .update(path, 'v2 (esta aba)', { ...message, expectedSha: v1 })
+        .catch((e) => e);
       expect(error).toBeInstanceOf(ConflictError);
       expect((error as ConflictError).currentSha).toBe(gitBlobShaOfText('v2 (outra aba)'));
       expect((await store.read(path)).content).toBe('v2 (outra aba)');
@@ -79,7 +83,10 @@ export function describeVaultStoreContract(name: string, setup: () => Promise<Co
       const { store, prefix } = await setup();
       await expect(store.read(`${prefix}nao-existe.md`)).rejects.toBeInstanceOf(NotFoundError);
       await expect(
-        store.update(`${prefix}nao-existe.md`, 'x', { ...message, expectedSha: gitBlobShaOfText('x') }),
+        store.update(`${prefix}nao-existe.md`, 'x', {
+          ...message,
+          expectedSha: gitBlobShaOfText('x'),
+        }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
 

@@ -26,7 +26,11 @@ function setup() {
 
 describeVaultStoreContract('GitHub (API simulada)', async () => {
   const { github, store } = setup();
-  return { store, prefix: '', writeExternal: async (path, content) => github.writeExternal(path, content) };
+  return {
+    store,
+    prefix: '',
+    writeExternal: async (path, content) => github.writeExternal(path, content),
+  };
 });
 
 describe('GitHubVaultStore — comportamento HTTP', () => {
@@ -35,7 +39,9 @@ describe('GitHubVaultStore — comportamento HTTP', () => {
     await store.create('Pasta com espaço/Ação #1.md', 'x', { message: 'm' });
     const request = github.requests.at(-1)!;
     expect(request.auth).toBe('Bearer token-de-teste');
-    expect(request.url).toBe('/repos/dono/vault/contents/Pasta%20com%20espa%C3%A7o/A%C3%A7%C3%A3o%20%231.md');
+    expect(request.url).toBe(
+      '/repos/dono/vault/contents/Pasta%20com%20espa%C3%A7o/A%C3%A7%C3%A3o%20%231.md',
+    );
     expect(request.url).not.toContain('token');
   });
 
@@ -43,15 +49,25 @@ describe('GitHubVaultStore — comportamento HTTP', () => {
     const { store } = setup();
     expect(await store.list()).toEqual([]);
     const other = new GitHubVaultStore({
-      owner: 'dono', repo: 'vault', branch: 'outro', token: 'token-de-teste',
-      fetch: createFakeGitHub().fetch, retryDelaysMs: [],
+      owner: 'dono',
+      repo: 'vault',
+      branch: 'outro',
+      token: 'token-de-teste',
+      fetch: createFakeGitHub().fetch,
+      retryDelaysMs: [],
     });
     await expect(other.list()).rejects.toBeInstanceOf(VaultConfigError);
   });
 
   it('token inválido vira erro de configuração sem vazar a resposta', async () => {
     const github = createFakeGitHub({ token: 'certo' });
-    const store = new GitHubVaultStore({ owner: 'dono', repo: 'vault', branch: 'main', token: 'errado', fetch: github.fetch });
+    const store = new GitHubVaultStore({
+      owner: 'dono',
+      repo: 'vault',
+      branch: 'main',
+      token: 'errado',
+      fetch: github.fetch,
+    });
     const error = await store.list().catch((e) => e);
     expect(error).toBeInstanceOf(VaultConfigError);
     expect(String(error.message)).not.toContain('Bad credentials');
@@ -63,7 +79,9 @@ describe('GitHubVaultStore — comportamento HTTP', () => {
     github.writeExternal('grande.md', big);
     const file = await store.read('grande.md');
     expect(file.content).toBe(big);
-    expect(github.requests.some((r) => r.url.startsWith('/repos/dono/vault/git/blobs/'))).toBe(true);
+    expect(github.requests.some((r) => r.url.startsWith('/repos/dono/vault/git/blobs/'))).toBe(
+      true,
+    );
   });
 
   it('repete leituras em falhas transitórias, mas não gravações', async () => {
@@ -73,7 +91,9 @@ describe('GitHubVaultStore — comportamento HTTP', () => {
     expect((await store.read('a.md')).content).toBe('conteúdo');
 
     github.failures.push('network');
-    await expect(store.create('b.md', 'x', { message: 'm' })).rejects.toBeInstanceOf(VaultUnavailableError);
+    await expect(store.create('b.md', 'x', { message: 'm' })).rejects.toBeInstanceOf(
+      VaultUnavailableError,
+    );
     expect(github.files.has('b.md')).toBe(false);
   });
 
@@ -86,7 +106,9 @@ describe('GitHubVaultStore — comportamento HTTP', () => {
   it('criação sobre arquivo existente é AlreadyExists; atualização divergente é Conflict', async () => {
     const { github, store } = setup();
     github.writeExternal('x.md', 'remoto');
-    await expect(store.create('x.md', 'meu', { message: 'm' })).rejects.toBeInstanceOf(AlreadyExistsError);
+    await expect(store.create('x.md', 'meu', { message: 'm' })).rejects.toBeInstanceOf(
+      AlreadyExistsError,
+    );
     await expect(
       store.update('x.md', 'meu', { message: 'm', expectedSha: 'a'.repeat(40) }),
     ).rejects.toBeInstanceOf(ConflictError);
@@ -105,8 +127,12 @@ describe('GitHubVaultStore — comportamento HTTP', () => {
   it('árvore truncada é erro explícito', async () => {
     const { store } = setup();
     const truncated = new GitHubVaultStore({
-      owner: 'dono', repo: 'vault', branch: 'main', token: 't',
-      fetch: async () => new Response(JSON.stringify({ truncated: true, tree: [] }), { status: 200 }),
+      owner: 'dono',
+      repo: 'vault',
+      branch: 'main',
+      token: 't',
+      fetch: async () =>
+        new Response(JSON.stringify({ truncated: true, tree: [] }), { status: 200 }),
     });
     void store;
     await expect(truncated.list()).rejects.toBeInstanceOf(TooLargeError);

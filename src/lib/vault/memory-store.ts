@@ -1,7 +1,14 @@
 import { decodeText, encodeText, gitBlobSha } from './blob';
 import { AlreadyExistsError, ConflictError, NotFoundError } from './errors';
 import { normalizeVaultPath } from './paths';
-import type { UpdateOptions, VaultEntry, VaultFile, VaultStore, WriteOptions, WriteResult } from './types';
+import type {
+  UpdateOptions,
+  VaultEntry,
+  VaultFile,
+  VaultStore,
+  WriteOptions,
+  WriteResult,
+} from './types';
 
 /** Adaptador em memória para testes. Mesma semântica de versão (SHA de blob) dos demais. */
 export class MemoryVaultStore implements VaultStore {
@@ -26,7 +33,12 @@ export class MemoryVaultStore implements VaultStore {
     const key = normalizeVaultPath(path);
     const bytes = this.files.get(key);
     if (!bytes) throw new NotFoundError();
-    return { path: key, content: decodeText(bytes), sha: gitBlobSha(bytes), size: bytes.byteLength };
+    return {
+      path: key,
+      content: decodeText(bytes),
+      sha: gitBlobSha(bytes),
+      size: bytes.byteLength,
+    };
   }
 
   async create(path: string, content: string, { message }: WriteOptions): Promise<WriteResult> {

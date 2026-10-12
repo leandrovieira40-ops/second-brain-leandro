@@ -47,7 +47,10 @@ export class ConflictError extends VaultError {
 export class VaultRateLimitedError extends VaultError {
   override readonly name = 'VaultRateLimitedError';
   constructor(readonly retryAfterSeconds: number | null) {
-    super('rate_limited', 'Limite de requisições do provedor do vault atingido. Tente novamente em instantes.');
+    super(
+      'rate_limited',
+      'Limite de requisições do provedor do vault atingido. Tente novamente em instantes.',
+    );
   }
 }
 

@@ -21,7 +21,10 @@ export class LinkResolver {
   private readonly byName = new Map<string, string[]>();
   private readonly byAlias = new Map<string, string[]>();
 
-  constructor(paths: readonly string[], aliases: ReadonlyMap<string, readonly string[]> = new Map()) {
+  constructor(
+    paths: readonly string[],
+    aliases: ReadonlyMap<string, readonly string[]> = new Map(),
+  ) {
     for (const path of paths) {
       this.byPath.set(key(path), path);
       const name = basename(path);
@@ -34,7 +37,10 @@ export class LinkResolver {
   }
 
   resolve(target: string, fromPath: string): LinkResolution {
-    const normalized = target.normalize('NFC').trim().replace(/^\.?\//, '');
+    const normalized = target
+      .normalize('NFC')
+      .trim()
+      .replace(/^\.?\//, '');
     if (normalized === '') return { path: fromPath, ambiguous: false, candidates: [fromPath] };
 
     const variants = withMd(normalized);

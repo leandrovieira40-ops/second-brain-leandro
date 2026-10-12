@@ -11,15 +11,15 @@ derivados do vault (reconstruíveis), mais alguns dados operacionais.
 
 Comparação feita em 12/10/2026 (páginas oficiais; reconfirmar antes de contratar):
 
-| | Neon Free | Supabase Free |
-| --- | --- | --- |
-| Armazenamento | 1 GB por projeto (alterado em 02/10/2026) | 500 MB |
-| Computação | 100 CU-h/mês, escala a zero após 5 min | CPU compartilhada |
-| Inatividade | Escala a zero, **não pausa o projeto** | **Pausa após 7 dias** sem uso (restauração manual) |
-| pgvector | Sim (HNSW até 2.000 dimensões em `vector`) | Sim |
-| Branches | 10 por projeto (útil para previews) | Não no Free |
-| Integração Vercel | Marketplace nativo (antigo Vercel Postgres migrou para Neon) | Integração disponível |
-| Plano pago | Por uso, sem mínimo mensal | US$ 25/mês |
+|                   | Neon Free                                                    | Supabase Free                                      |
+| ----------------- | ------------------------------------------------------------ | -------------------------------------------------- |
+| Armazenamento     | 1 GB por projeto (alterado em 02/10/2026)                    | 500 MB                                             |
+| Computação        | 100 CU-h/mês, escala a zero após 5 min                       | CPU compartilhada                                  |
+| Inatividade       | Escala a zero, **não pausa o projeto**                       | **Pausa após 7 dias** sem uso (restauração manual) |
+| pgvector          | Sim (HNSW até 2.000 dimensões em `vector`)                   | Sim                                                |
+| Branches          | 10 por projeto (útil para previews)                          | Não no Free                                        |
+| Integração Vercel | Marketplace nativo (antigo Vercel Postgres migrou para Neon) | Integração disponível                              |
+| Plano pago        | Por uso, sem mínimo mensal                                   | US$ 25/mês                                         |
 
 ## Decisão
 

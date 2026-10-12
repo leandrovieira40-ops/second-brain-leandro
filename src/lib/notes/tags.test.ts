@@ -11,7 +11,8 @@ describe('extractInlineTags', () => {
   });
 
   it('ignora cabeçalhos, números puros, âncoras, URLs e código', () => {
-    const md = '# Título\n## Sub\n#123 x#y https://a.com/#ancora [l](#sec) `#codigo`\n```\n#bloco\n```';
+    const md =
+      '# Título\n## Sub\n#123 x#y https://a.com/#ancora [l](#sec) `#codigo`\n```\n#bloco\n```';
     expect(extractInlineTags(md)).toEqual([]);
   });
 });
