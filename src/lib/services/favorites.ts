@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import {
   AlreadyExistsError,
   ConflictError,
@@ -7,14 +6,13 @@ import {
 } from '@/lib/vault/errors';
 import { assertNotePath } from '@/lib/vault/paths';
 import type { VaultStore } from '@/lib/vault/types';
-import { commitMessage, FAVORITES_PATH } from './notes';
+import { FAVORITES_PATH, parseFavoritesFile, serializeFavoritesFile } from './favorites-file';
+import { commitMessage } from './notes';
 
 /**
  * Favoritos são uma decisão do usuário (não derivável): ficam no próprio vault, em JSON legível,
  * versionados pelo Git (DATA_MODEL.md §5).
  */
-const fileSchema = z.object({ version: z.literal(1), notes: z.array(z.string()) });
-
 export interface Favorites {
   notes: string[];
   /** O arquivo existe mas não está no formato esperado (nunca é sobrescrito nesse caso). */
@@ -43,7 +41,7 @@ export class FavoritesService {
       if (favorite) notes.add(note);
       else notes.delete(note);
       const next = [...notes];
-      const content = `${JSON.stringify({ version: 1, notes: next }, null, 2)}\n`;
+      const content = serializeFavoritesFile(next);
       const message = {
         message: commitMessage(`${favorite ? 'Adiciona' : 'Remove'} favorito ${note}`),
       };
@@ -65,14 +63,8 @@ export class FavoritesService {
   private async readRaw(): Promise<{ sha: string; parsed: { notes: string[] } | null } | null> {
     try {
       const file = await this.store.read(FAVORITES_PATH);
-      let parsed: { notes: string[] } | null = null;
-      try {
-        const result = fileSchema.safeParse(JSON.parse(file.content));
-        parsed = result.success ? result.data : null;
-      } catch {
-        parsed = null;
-      }
-      return { sha: file.sha, parsed };
+      const notes = parseFavoritesFile(file.content);
+      return { sha: file.sha, parsed: notes ? { notes } : null };
     } catch (error) {
       if (error instanceof NotFoundError) return null;
       throw error;

@@ -122,6 +122,24 @@ export class NoteIndex {
     });
   }
 
+  /** Grafo de links para renomear: sincroniza antes, para não perder links feitos fora da aplicação. */
+  async linkGraph(): Promise<{
+    links: { sourcePath: string; targetRaw: string }[];
+    aliases: Map<string, string[]>;
+  }> {
+    await this.sync();
+    const linkRows = await this.db
+      .select({ sourcePath: links.sourcePath, targetRaw: links.targetRaw })
+      .from(links);
+    const noteRows = await this.db.select({ path: notes.path, aliases: notes.aliases }).from(notes);
+    return {
+      links: linkRows,
+      aliases: new Map(
+        noteRows.filter((row) => row.aliases.length).map((row) => [row.path, row.aliases]),
+      ),
+    };
+  }
+
   async status(): Promise<IndexStatus> {
     const [state] = await this.db.select().from(syncState).where(eq(syncState.id, 1));
     const [count] = await this.db.select({ value: sql<number>`count(*)::int` }).from(notes);

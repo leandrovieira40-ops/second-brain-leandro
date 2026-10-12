@@ -22,6 +22,12 @@ const sha = z.string().regex(/^[0-9a-f]{40}$/);
 export const pathQuerySchema = z.object({ path });
 export const versionQuerySchema = z.object({ path, commit: sha });
 export const trashNoteSchema = z.object({ path, expectedSha: sha });
+export const renameNoteSchema = z.object({
+  path,
+  expectedSha: sha,
+  title: z.string().trim().min(1).max(200),
+  folder: z.string().max(400),
+});
 export const restoreVersionSchema = z.object({ path, commitSha: sha, expectedSha: sha });
 export const trashItemSchema = z.object({ trashPath: path });
 export const purgeSchema = z.object({ trashPath: path, expectedSha: sha });

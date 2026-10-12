@@ -15,6 +15,7 @@ import {
   searchNotes,
 } from '@/lib/index/queries';
 import { gitBlobShaOfText } from '@/lib/vault/blob';
+import { NotesService, type WrittenChange } from '@/lib/services/notes';
 import { MemoryVaultStore } from '@/lib/vault/memory-store';
 
 /**
@@ -194,5 +195,35 @@ describe.skipIf(!url)('índice derivado (PostgreSQL real)', () => {
     expect(count.rows[0]?.n).toBe(4);
     const linkCount = await db.execute<{ n: number }>(sql`select count(*)::int as n from links`);
     expect(linkCount.rows[0]?.n).toBe(3);
+  });
+  it('renomear usa o grafo do índice (sincronizado antes) e o índice acompanha o resultado', async () => {
+    const { store, index } = await indexed();
+    // Link criado fora da aplicação e ainda não indexado: a sincronização prévia o encontra.
+    store.writeExternal('00-Inbox/Solta.md', 'agora cita [[Posicionamento#Definição]]');
+    const writes: WrittenChange[][] = [];
+    const service = new NotesService(store, {
+      timeZone: 'America/Sao_Paulo',
+      linkGraph: () => index.linkGraph(),
+      onWrite: (changes) => writes.push(changes),
+    });
+    const result = await service.rename({
+      path: '04-Concepts/Posicionamento.md',
+      expectedSha: (await store.read('04-Concepts/Posicionamento.md')).sha,
+      title: 'Proposta de valor',
+      folder: '04-Concepts',
+    });
+    // [[Positioning]] resolve por alias e continua válido: só a nota com o nome antigo muda.
+    expect(result.updatedNotes).toEqual(['00-Inbox/Solta.md']);
+    expect((await store.read('00-Inbox/Solta.md')).content).toBe(
+      'agora cita [[Proposta de valor#Definição]]',
+    );
+
+    for (const changes of writes) await index.apply(changes);
+    expect(
+      (await backlinksTo(db, '04-Concepts/Proposta de valor.md')).map((b) => b.sourcePath).sort(),
+    ).toEqual(['00-Inbox/Solta.md', '03-Permanent-Notes/Posicionar é escolher.md']);
+    expect(await referencingNotes(db, '04-Concepts/Posicionamento.md')).toEqual([]);
+    // O índice incremental bate com uma sincronização completa.
+    expect(await index.sync()).toMatchObject({ added: 0, updated: 0, removed: 0 });
   });
 });

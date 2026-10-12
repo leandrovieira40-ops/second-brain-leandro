@@ -4,6 +4,7 @@ import {
   ConflictError,
   NotFoundError,
   TooLargeError,
+  UnsupportedOperationError,
 } from '@/lib/vault/errors';
 import {
   assertFolderPath,
@@ -14,13 +15,22 @@ import {
   isHiddenPath,
   isMarkdownPath,
 } from '@/lib/vault/paths';
-import type { CommitInfo, VaultStore, WriteResult } from '@/lib/vault/types';
+import type { BatchChange, CommitInfo, VaultStore, WriteResult } from '@/lib/vault/types';
 import { captureTitle } from '@/lib/notes/capture';
 import { isoDateInTimeZone } from '@/lib/notes/dates';
 import { conflictCopyPath, noteFilePath, titleToFileName } from '@/lib/notes/filename';
+import { applyChange, parseFrontmatter, scalarFieldChange } from '@/lib/notes/frontmatter';
 import { ulid } from '@/lib/notes/ids';
+import { parseNote } from '@/lib/notes/parse';
+import {
+  affectedSources,
+  followsFileName,
+  renameContext,
+  rewriteLinksForRename,
+} from '@/lib/notes/rename';
 import { newNoteContent } from '@/lib/notes/template';
 import { INBOX_FOLDER, type NoteType } from '@/lib/notes/types';
+import { FAVORITES_PATH, parseFavoritesFile, serializeFavoritesFile } from './favorites-file';
 
 /** Tamanho máximo de uma nota editável (ADR-0008). */
 export const MAX_NOTE_BYTES = 1024 * 1024;
@@ -39,8 +49,13 @@ export interface VaultTree {
 }
 
 export const TRASH_FOLDER = '.trash';
-export const FAVORITES_PATH = '.second-brain/favorites.json';
+export { FAVORITES_PATH };
 export const MAX_CAPTURE_CHARS = 20_000;
+/** Limite de notas reescritas numa renomeação (um commit; acima disso, renomeie em etapas). */
+export const MAX_RENAME_UPDATES = 200;
+/** Sem índice, a renomeação lê o vault inteiro; no GitHub isso só é razoável em vaults pequenos. */
+export const MAX_SCAN_NOTES_WITHOUT_INDEX = 400;
+const READ_CONCURRENCY = 6;
 
 export interface TrashItem {
   /** Caminho dentro de `.trash/`. */
@@ -74,11 +89,26 @@ export interface WrittenChange {
   sha?: string;
 }
 
+/** Grafo de links do vault: quem aponta para quem (pelo texto do link) e os aliases das notas. */
+export interface LinkGraph {
+  links: { sourcePath: string; targetRaw: string }[];
+  aliases: Map<string, string[]>;
+}
+
+export interface RenameResult {
+  path: string;
+  sha: string;
+  /** Notas cujos `[[links]]` foram reescritos no mesmo commit. */
+  updatedNotes: string[];
+}
+
 export interface NotesServiceOptions {
   timeZone: string;
   now?: () => Date;
   /** Chamado depois de cada gravação CONFIRMADA (ex.: atualizar o índice derivado). */
   onWrite?: (changes: WrittenChange[]) => void;
+  /** Grafo de links do índice, sincronizado com o vault. Sem ele, o serviço lê as notas. */
+  linkGraph?: () => Promise<LinkGraph>;
 }
 
 const ORIGIN_TRAILER = 'Second-Brain-Origin: web';
@@ -315,6 +345,169 @@ export class NotesService {
       summary: `Restaura ${old.path} para a versão ${input.commitSha.slice(0, 7)}`,
     });
     return { path: result.path, content: old.content, sha: result.sha };
+  }
+
+  /**
+   * Renomeia e/ou move a nota num ÚNICO commit, reescrevendo os `[[links]]` que apontavam para ela
+   * (e os que mudariam de destino por causa do nome novo). Exige a versão que o usuário viu; se outra
+   * nota envolvida mudar no meio do caminho, o plano é refeito — nada é sobrescrito às cegas.
+   */
+  async rename(input: {
+    path: string;
+    expectedSha: string;
+    title: string;
+    folder: string;
+  }): Promise<RenameResult> {
+    const oldPath = assertNotePath(input.path);
+    const folder = assertFolderPath(input.folder);
+    const newPath = assertNotePath(noteFilePath(folder, input.title));
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.renameOnce(oldPath, newPath, input);
+      } catch (error) {
+        if (!(error instanceof ConflictError) || attempt >= 2) throw error;
+        // Conflito na própria nota é do usuário resolver; em outra nota envolvida, refaz o plano.
+        const current = await this.store.read(oldPath);
+        if (current.sha !== input.expectedSha) throw new ConflictError(current.sha);
+      }
+    }
+  }
+
+  private async renameOnce(
+    oldPath: string,
+    newPath: string,
+    input: { expectedSha: string; title: string },
+  ): Promise<RenameResult> {
+    const file = await this.store.read(oldPath);
+    if (file.sha !== input.expectedSha) throw new ConflictError(file.sha);
+    if (newPath === oldPath) return { path: oldPath, sha: file.sha, updatedNotes: [] };
+
+    const entries = await this.store.list();
+    const key = collisionKey(newPath);
+    if (entries.some((entry) => entry.path !== oldPath && collisionKey(entry.path) === key)) {
+      throw new AlreadyExistsError(
+        `Já existe uma nota com esse nome nessa pasta (${basename(newPath)}).`,
+      );
+    }
+    const visible = entries
+      .map((entry) => entry.path)
+      .filter((path) => !isHiddenPath(path) && basename(path) !== '.gitkeep');
+    const graph = await this.linkGraphFor(visible);
+    const context = renameContext({ oldPath, newPath, paths: visible, aliases: graph.aliases });
+
+    const sources = affectedSources(graph.links, context);
+    if (sources.length > MAX_RENAME_UPDATES) {
+      throw new TooLargeError(
+        `A renomeação mudaria links em ${sources.length} notas (limite ${MAX_RENAME_UPDATES}).`,
+      );
+    }
+    const updates: { path: string; content: string; expectedSha: string }[] = [];
+    for (const file of await this.readMany(sources)) {
+      const result = rewriteLinksForRename(file.content, file.path, file.path, context);
+      if (result.changed > 0) {
+        this.assertSize(result.content);
+        updates.push({ path: file.path, content: result.content, expectedSha: file.sha });
+      }
+    }
+
+    let moved = rewriteLinksForRename(file.content, oldPath, newPath, context).content;
+    const title = parseFrontmatter(moved).data?.title;
+    if (
+      basename(oldPath) !== basename(newPath) &&
+      followsFileName(title, oldPath, titleToFileName)
+    ) {
+      moved = applyChange(moved, scalarFieldChange(moved, 'title', input.title.trim(), 'yaml'));
+    }
+
+    const changes: BatchChange[] = [
+      { kind: 'delete', path: oldPath, expectedSha: file.sha },
+      { kind: 'put', path: newPath, content: moved, expectedSha: null },
+      ...updates.map((update) => ({ kind: 'put' as const, ...update })),
+    ];
+    const favorites = await this.renamedFavorites(oldPath, newPath);
+    if (favorites) changes.push(favorites);
+
+    const verb = dirname(oldPath) === dirname(newPath) ? 'Renomeia' : 'Move';
+    const linksNote = updates.length
+      ? ` e atualiza links em ${updates.length} nota${updates.length > 1 ? 's' : ''}`
+      : '';
+    await this.store.commit(changes, {
+      message: commitMessage(`${verb} ${oldPath} para ${newPath}${linksNote}`),
+    });
+    const sha = gitBlobShaOfText(moved);
+    this.written([
+      { path: oldPath },
+      { path: newPath, content: moved, sha },
+      ...updates.map((update) => ({
+        path: update.path,
+        content: update.content,
+        sha: gitBlobShaOfText(update.content),
+      })),
+    ]);
+    return { path: newPath, sha, updatedNotes: updates.map((update) => update.path) };
+  }
+
+  /** Grafo do índice; sem índice (ou com ele fora do ar), lê as notas do vault. */
+  private async linkGraphFor(visible: string[]): Promise<LinkGraph> {
+    if (this.options.linkGraph) {
+      try {
+        return await this.options.linkGraph();
+      } catch {
+        // O índice é só um atalho: cai para a leitura direta abaixo.
+      }
+    }
+    const notes = visible.filter(isMarkdownPath);
+    if (this.store.kind === 'github' && notes.length > MAX_SCAN_NOTES_WITHOUT_INDEX) {
+      throw new UnsupportedOperationError(
+        'Para renomear com atualização de links num vault deste tamanho, configure o índice (DATABASE_URL).',
+      );
+    }
+    const graph: LinkGraph = { links: [], aliases: new Map() };
+    for (const file of await this.readMany(notes)) {
+      const parsed = parseNote(file.path, file.content);
+      if (parsed.aliases.length) graph.aliases.set(file.path, parsed.aliases);
+      for (const link of parsed.links) {
+        graph.links.push({ sourcePath: file.path, targetRaw: link.target });
+      }
+    }
+    return graph;
+  }
+
+  private async readMany(paths: readonly string[]) {
+    const files = [];
+    for (let i = 0; i < paths.length; i += READ_CONCURRENCY) {
+      const batch = paths.slice(i, i + READ_CONCURRENCY);
+      const read = await Promise.all(
+        batch.map((path) =>
+          this.store.read(path).catch((error: unknown) => {
+            if (error instanceof NotFoundError) return null; // sumiu desde a listagem
+            throw error;
+          }),
+        ),
+      );
+      for (const file of read) if (file) files.push(file);
+    }
+    return files;
+  }
+
+  /** Favoritos acompanham a nota (só se o arquivo estiver no formato esperado). */
+  private async renamedFavorites(oldPath: string, newPath: string): Promise<BatchChange | null> {
+    let file;
+    try {
+      file = await this.store.read(FAVORITES_PATH);
+    } catch (error) {
+      if (error instanceof NotFoundError) return null;
+      throw error;
+    }
+    const notes = parseFavoritesFile(file.content);
+    if (!notes?.includes(oldPath)) return null;
+    const next = [...new Set(notes.map((path) => (path === oldPath ? newPath : path)))];
+    return {
+      kind: 'put',
+      path: FAVORITES_PATH,
+      content: serializeFavoritesFile(next),
+      expectedSha: file.sha,
+    };
   }
 
   private stamp(date: Date): string {

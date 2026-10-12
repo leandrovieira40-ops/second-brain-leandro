@@ -34,9 +34,11 @@ function scheduleIndexUpdate(changes: WrittenChange[]): void {
 }
 
 export function getNotesService(): NotesService {
+  const index = getNoteIndex();
   return new NotesService(getVaultStore(), {
     timeZone: readAppConfig().timeZone,
     onWrite: scheduleIndexUpdate,
+    linkGraph: index ? () => index.linkGraph() : undefined,
   });
 }
 
