@@ -4,8 +4,8 @@ Sistema pessoal de conhecimento inspirado no Obsidian: notas em **Markdown no Gi
 canônica, links bidirecionais, busca e — nas próximas fases — IA que responde com **fontes
 verificáveis**. O nome exibido é configurável (`APP_NAME`, padrão "Second Brain Leandro").
 
-> **Status:** Fase 0 (arquitetura) ✅ · Fase 1 (fundação funcional) ✅ implementada e testada —
-> falta a verificação no ambiente publicado. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status:** Fase 0 ✅ · Fase 1 ✅ · Fase 2A ✅ (sem banco) · Fase 2B (índice, busca, backlinks) em seguida.
+> Falta a verificação no ambiente publicado. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## O que já funciona (Fase 1)
 
@@ -16,6 +16,10 @@ verificáveis**. O nome exibido é configurável (`APP_NAME`, padrão "Second Br
 - Salvamento confiável: autosave limitado, `Ctrl+S`, rascunho local, status honesto ("Salvo" só após
   confirmação), detecção de conflito com edições externas (Obsidian) e cópia de conflito.
 - Vault no GitHub (API REST, sem clonar) ou numa pasta local (desenvolvimento/uso com o Obsidian).
+
+**Fase 2A:** captura rápida (Alt+C), autocompletar de `[[links]]`, criar nota a partir de link
+quebrado, lixeira com restauração (`.trash/`), histórico de versões com restauração, favoritos (no
+próprio vault) e notas recentes.
 
 ## Começar
 

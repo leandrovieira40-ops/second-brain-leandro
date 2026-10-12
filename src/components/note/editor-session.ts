@@ -4,6 +4,7 @@ import { loadDraft, removeDraft } from '@/lib/editor/drafts';
 import { SaveController } from '@/lib/editor/save-controller';
 import { isoDateInTimeZone } from '@/lib/notes/dates';
 import { applyChange, scalarFieldChange } from '@/lib/notes/frontmatter';
+import { suggestNotes, type NoteSuggestion } from '@/lib/notes/suggest';
 
 /**
  * Liga o `SaveController` ao CodeMirror sem passar refs do React para dentro de callbacks.
@@ -11,6 +12,7 @@ import { applyChange, scalarFieldChange } from '@/lib/notes/frontmatter';
  */
 export function createEditorSession(note: NoteDto, timeZone: string) {
   let view: EditorView | null = null;
+  let notePaths: readonly string[] = [];
 
   const controller = new SaveController({
     path: note.path,
@@ -39,6 +41,17 @@ export function createEditorSession(note: NoteDto, timeZone: string) {
     controller,
     attachView(next: EditorView) {
       view = next;
+    },
+    /** Mantém as sugestões de [[links]] em dia com a árvore do vault. */
+    setNotePaths(paths: readonly string[]) {
+      notePaths = paths;
+    },
+    /** Função estável usada pelo autocompletar do editor. */
+    suggest(query: string): NoteSuggestion[] {
+      return suggestNotes(
+        query,
+        notePaths.filter((path) => path !== note.path),
+      );
     },
     /** Substitui o texto inteiro do editor (recarregar versão remota, restaurar rascunho). */
     replace(text: string) {

@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { requireSession } from '@/lib/auth/guard';
 import { ConfigError, readAppConfig, readVaultConfig } from '@/lib/config/env';
-import { getNotesService } from '@/lib/services';
+import { getFavoritesService, getNotesService } from '@/lib/services';
 import type { VaultTree } from '@/lib/services/notes';
 import { VaultError } from '@/lib/vault/errors';
 
@@ -29,9 +29,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
   let vaultError: string | null = null;
   let storeKind: 'github' | 'fs' | 'memory' = 'github';
+  let favorites: string[] = [];
   try {
     storeKind = readVaultConfig().store;
     tree = await getNotesService().tree();
+    // Só lê o arquivo de favoritos se ele existir (economiza uma chamada à API do GitHub).
+    if (tree.favoritesSha) favorites = (await getFavoritesService().list()).notes;
   } catch (error) {
     if (error instanceof VaultError || error instanceof ConfigError) vaultError = error.message;
     else throw error;
@@ -42,6 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         appName={appName}
         vault={{ tree, storeKind, timeZone, error: vaultError }}
         vaultLabel={vaultLabel()}
+        initialFavorites={favorites}
       >
         {children}
       </AppShell>

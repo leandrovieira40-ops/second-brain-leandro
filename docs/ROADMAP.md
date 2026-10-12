@@ -31,14 +31,25 @@ Demonstrado por `e2e/notes.spec.ts` ("criar, salvar, fechar, reabrir…") contra
 com o adaptador de pasta local. Falta repetir no ambiente publicado com o GitHub real
 ([DEPLOYMENT.md §4](./DEPLOYMENT.md#4-verificação-pós-deploy-obrigatória)).
 
-## Fase 2 — Experiência de conhecimento
+## Fase 2 — Experiência de conhecimento 🚧
 
-Postgres (Neon) + Drizzle; índice derivado com webhook `push` e reconciliação; Inbox e captura rápida
-(atalho global); tags; autocompletar de wikilinks; criar nota a partir de link inexistente; backlinks
-com contexto; busca textual global (Ctrl+K) com filtros e trechos; favoritos; notas recentes;
-histórico de alterações (commits por arquivo, com visualização de versão antiga e restauração);
-lixeira lógica (`.trash/`) e recuperação; renomear/mover com atualização atômica de links (Git Data
-API); exportação (zip) e importação de vault; rate limit de login no banco; GitHub OAuth.
+### 2A — sem banco de dados ✅
+
+- [x] Commit atômico de vários arquivos no `VaultStore` (Git Data API no GitHub), histórico e leitura de versões
+- [x] Captura rápida (Alt+C) direto para o Inbox, sem classificar
+- [x] Autocompletar de `[[wikilinks]]` (sem acentos/maiúsculas; nomes repetidos sugerem o caminho)
+- [x] Criar nota a partir de link inexistente (na visualização e no painel de links)
+- [x] Lixeira lógica em `.trash/` (mesma pasta do Obsidian): mover num único commit, restaurar sem
+      sobrescrever, excluir de vez
+- [x] Histórico de versões da nota e restauração como nova versão (com o vault no GitHub)
+- [x] Favoritos guardados no vault (`.second-brain/favorites.json`) e notas recentes por navegador
+
+### 2B — com índice derivado (PostgreSQL)
+
+Postgres (Neon) + Drizzle; índice derivado com webhook `push` e reconciliação; backlinks com
+contexto; busca textual global (Ctrl+K) com filtros e trechos; página de tags; renomear/mover com
+atualização atômica dos links que apontam para a nota; exportação (zip) e importação de vault; rate
+limit de login no banco; GitHub OAuth.
 
 **Critério:** registrar, organizar, encontrar e relacionar conhecimento sem IA. Cenários A, G, H, I.
 
@@ -83,15 +94,15 @@ E2E completos, observabilidade, documentação final. Cenários F–J consolidad
 
 ## Mapa dos cenários de aceitação
 
-| Cenário | Descrição                                              | Fase | Situação                                                              |
-| ------- | ------------------------------------------------------ | ---- | --------------------------------------------------------------------- |
-| A       | Captura, tags, relação, busca                          | 2    | Parcial: criação, tags e links na Fase 1; busca na 2                  |
-| B       | Importar artigo com resumo revisável                   | 4–5  | Planejado                                                             |
-| C       | Nota permanente com fontes visíveis                    | 5    | Planejado                                                             |
-| D       | Pergunta à IA com referências clicáveis                | 5    | Planejado                                                             |
-| E       | Sugestão de relação explicada                          | 3    | Planejado                                                             |
-| F       | Falha de rede não indica salvamento falso              | 1    | ✅ Testado (E2E)                                                      |
-| G       | Alteração externa detectada sem perda                  | 1–2  | ✅ Detecção de conflito testada (E2E); índice na Fase 2               |
-| H       | Vault portável fora da aplicação                       | 1    | Por construção (Markdown no Git); verificação manual em VAULT_SYNC.md |
-| I       | Restaurar nota excluída                                | 2    | Planejado (lixeira + histórico)                                       |
-| J       | Não autenticado não acessa; nenhuma chave no navegador | 1    | ✅ Testado (E2E + varredura do bundle na CI)                          |
+| Cenário | Descrição                                              | Fase | Situação                                                                         |
+| ------- | ------------------------------------------------------ | ---- | -------------------------------------------------------------------------------- |
+| A       | Captura, tags, relação, busca                          | 2    | Parcial: criação, tags e links na Fase 1; busca na 2                             |
+| B       | Importar artigo com resumo revisável                   | 4–5  | Planejado                                                                        |
+| C       | Nota permanente com fontes visíveis                    | 5    | Planejado                                                                        |
+| D       | Pergunta à IA com referências clicáveis                | 5    | Planejado                                                                        |
+| E       | Sugestão de relação explicada                          | 3    | Planejado                                                                        |
+| F       | Falha de rede não indica salvamento falso              | 1    | ✅ Testado (E2E)                                                                 |
+| G       | Alteração externa detectada sem perda                  | 1–2  | ✅ Detecção de conflito testada (E2E); índice na Fase 2                          |
+| H       | Vault portável fora da aplicação                       | 1    | Por construção (Markdown no Git); verificação manual em VAULT_SYNC.md            |
+| I       | Restaurar nota excluída                                | 2    | ✅ Lixeira + restauração testadas (E2E); histórico no GitHub testado no contrato |
+| J       | Não autenticado não acessa; nenhuma chave no navegador | 1    | ✅ Testado (E2E + varredura do bundle na CI)                                     |

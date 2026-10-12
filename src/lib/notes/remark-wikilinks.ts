@@ -67,11 +67,13 @@ function splitText(value: string, { resolver, fromPath, hrefFor }: WikilinkOptio
         type: 'wikilinkBroken',
         children: [{ type: 'text', value: label }],
         data: {
-          hName: 'span',
+          // Botão: o Markdown do usuário nunca gera <button> (HTML bruto é ignorado), só este plugin.
+          hName: 'button',
           hProperties: {
+            type: 'button',
             className: 'wikilink-broken',
-            title:
-              'Nenhum arquivo com esse nome. Aliases de outras notas ainda não são considerados.',
+            'data-wikilink-target': target,
+            title: 'Nota não encontrada — clique para criá-la.',
           },
         },
       });

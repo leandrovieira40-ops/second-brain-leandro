@@ -21,9 +21,12 @@ const CREATABLE = NOTE_TYPES.filter((type) => type !== 'template' && type !== 'n
 export function NewNoteDialog({
   open,
   onOpenChange,
+  initialTitle = '',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Título sugerido (ex.: destino de um link quebrado). */
+  initialTitle?: string;
 }) {
   const router = useRouter();
   const { tree } = useVault();
@@ -66,7 +69,14 @@ export function NewNoteDialog({
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="new-note-title">Título</Label>
-            <Input id="new-note-title" name="title" autoFocus maxLength={200} autoComplete="off" />
+            <Input
+              id="new-note-title"
+              name="title"
+              autoFocus
+              maxLength={200}
+              autoComplete="off"
+              defaultValue={initialTitle}
+            />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

@@ -8,6 +8,19 @@ export async function login(page: Page) {
   await page.getByLabel('Frase-senha').fill(E2E.password);
   await page.getByRole('button', { name: 'Entrar' }).click();
   await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible();
+  await waitForApp(page);
+}
+
+/** Espera a hidratação (atalhos e efeitos do cliente ativos), não só o HTML do servidor. */
+export async function waitForApp(page: Page) {
+  await expect(page.locator('[data-shell-ready="true"]')).toBeAttached();
+}
+
+/** Abre uma nota e espera o editor carregar. */
+export async function openNote(page: Page, relative: string) {
+  await page.goto(noteUrl(relative));
+  await waitForApp(page);
+  await expect(page.locator('.cm-content')).toBeVisible();
 }
 
 export const vaultFile = (relative: string) => path.join(E2E.vaultRoot, ...relative.split('/'));

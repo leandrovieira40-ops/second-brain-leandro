@@ -108,6 +108,23 @@ Reservada para decisões do usuário que não são deriváveis, em formatos aber
 exemplo `.second-brain/suggestions.jsonl` (sugestões aceitas/rejeitadas, Fase 3). Ela é versionada no
 vault, então sobrevive à perda do banco. Arquivos dessa pasta não são notas e não aparecem na árvore.
 
+### Arquivos usados hoje
+
+- **`.second-brain/favorites.json`** — favoritos, em ordem de inclusão:
+
+  ```json
+  { "version": 1, "notes": ["04-Concepts/Posicionamento.md"] }
+  ```
+
+  A aplicação nunca sobrescreve um arquivo inválido (avisa e pede correção manual).
+
+### Lixeira (`.trash/`)
+
+Mover para a lixeira grava `.trash/<caminho original>` e remove o original **no mesmo commit**.
+Se já existir algo com esse nome na lixeira, o arquivo recebe o sufixo ` (excluída AAAA-MM-DD HHmm)`,
+removido na restauração. Restaurar devolve ao caminho original; se ele estiver ocupado, cria
+` (restaurada AAAA-MM-DD HHmm)` ao lado. É a mesma pasta usada pela lixeira do Obsidian.
+
 ## 6. Esquema do banco (planejado — Fase 2+)
 
 ```text

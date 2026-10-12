@@ -1,6 +1,14 @@
 'use client';
 
-import { FileTextIcon, InboxIcon, PlusIcon, TriangleAlertIcon } from 'lucide-react';
+import {
+  ClockIcon,
+  FileTextIcon,
+  InboxIcon,
+  PlusIcon,
+  StarIcon,
+  TriangleAlertIcon,
+  ZapIcon,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -12,7 +20,8 @@ import { noteHref, useShell, useVault } from './vault-context';
 /** Painel inicial: somente indicadores calculados a partir de dados reais do vault e do navegador. */
 export function Dashboard() {
   const { tree, error: vaultError } = useVault();
-  const { openNewNote } = useShell();
+  const { openNewNote, openCapture, favorites, recents } = useShell();
+  const existing = new Set(tree.notes);
   const [drafts, setDrafts] = useState<string[]>([]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage só existe no cliente
   useEffect(() => setDrafts(listDraftPaths().sort()), []);
@@ -31,9 +40,14 @@ export function Dashboard() {
               {tree.attachments.length} {tree.attachments.length === 1 ? 'anexo' : 'anexos'}
             </p>
           </div>
-          <Button onClick={openNewNote}>
-            <PlusIcon /> Nova nota <kbd className="ml-1 text-xs opacity-70">Alt+N</kbd>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={openCapture}>
+              <ZapIcon /> Captura rápida <kbd className="ml-1 text-xs opacity-70">Alt+C</kbd>
+            </Button>
+            <Button onClick={() => openNewNote()}>
+              <PlusIcon /> Nova nota <kbd className="ml-1 text-xs opacity-70">Alt+N</kbd>
+            </Button>
+          </div>
         </header>
 
         {vaultError ? (
@@ -101,6 +115,23 @@ export function Dashboard() {
           )}
         </section>
 
+        <div className="grid gap-6 md:grid-cols-2">
+          <NoteList
+            title="Favoritos"
+            icon={<StarIcon className="size-4" />}
+            paths={favorites}
+            existing={existing}
+            empty="Marque notas com a estrela para tê-las sempre à mão."
+          />
+          <NoteList
+            title="Recentes neste navegador"
+            icon={<ClockIcon className="size-4" />}
+            paths={recents.slice(0, 8)}
+            existing={existing}
+            empty="As notas que você abrir aparecem aqui."
+          />
+        </div>
+
         {tree.notes.length === 0 && !vaultError ? (
           <section className="rounded-lg border border-dashed p-6 text-sm">
             <p className="font-medium">Seu vault ainda não tem notas.</p>
@@ -112,5 +143,50 @@ export function Dashboard() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+function NoteList({
+  title,
+  icon,
+  paths,
+  existing,
+  empty,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  paths: string[];
+  existing: Set<string>;
+  empty: string;
+}) {
+  return (
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 text-sm font-semibold">
+        {icon} {title}
+      </h2>
+      {paths.length === 0 ? (
+        <p className="text-muted-foreground text-sm">{empty}</p>
+      ) : (
+        <ul className="divide-y rounded-lg border">
+          {paths.map((path) => (
+            <li key={path}>
+              {existing.has(path) ? (
+                <Link
+                  href={noteHref(path)}
+                  className="hover:bg-muted flex items-center gap-2 px-4 py-2 text-sm"
+                >
+                  <FileTextIcon className="text-muted-foreground size-4" />
+                  {noteName(path)}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground flex items-center gap-2 px-4 py-2 text-sm line-through">
+                  {noteName(path)}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

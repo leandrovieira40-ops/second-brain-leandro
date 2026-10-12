@@ -1,5 +1,6 @@
 'use client';
 
+import { autocompletion, type CompletionContext } from '@codemirror/autocomplete';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { yamlFrontmatter } from '@codemirror/lang-yaml';
@@ -8,6 +9,7 @@ import { EditorView } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import CodeMirror from '@uiw/react-codemirror';
 import { useMemo } from 'react';
+import type { NoteSuggestion } from '@/lib/notes/suggest';
 
 const highlight = HighlightStyle.define([
   { tag: t.heading1, fontSize: '1.5em', fontWeight: '700' },
@@ -33,6 +35,28 @@ export interface MarkdownEditorProps {
   /** Deve ser estável (useCallback): o editor é reconfigurado quando muda. */
   onChange: (value: string) => void;
   onReady: (view: EditorView) => void;
+  /** Sugestões para `[[` (deve ser estável). */
+  suggest: (query: string) => NoteSuggestion[];
+}
+
+/** Fonte de autocompletar: ativa ao digitar `[[`, insere `Nome]]` (sem duplicar `]]`). */
+function wikilinkCompletions(suggest: (query: string) => NoteSuggestion[]) {
+  return (context: CompletionContext) => {
+    const match = context.matchBefore(/\[\[[^[\]|#\n]*$/);
+    if (!match) return null;
+    const query = match.text.slice(2);
+    const after = context.state.sliceDoc(context.pos, context.pos + 2);
+    return {
+      from: match.from + 2,
+      filter: false,
+      options: suggest(query).map((item) => ({
+        label: item.label,
+        detail: item.folder,
+        apply: after === ']]' ? item.insert : `${item.insert}]]`,
+        type: 'text',
+      })),
+    };
+  };
 }
 
 /** Editor do texto exato do arquivo (frontmatter incluído) — nada é reformatado (ADR-0003). */
@@ -41,6 +65,7 @@ export default function MarkdownEditor({
   readOnly,
   onChange,
   onReady,
+  suggest,
 }: MarkdownEditorProps) {
   // Ctrl/Cmd+S não é tratado aqui: sobe até o atalho global da área da nota.
   const extensions = useMemo(
@@ -49,13 +74,14 @@ export default function MarkdownEditor({
       yamlFrontmatter({ content: markdown({ base: markdownLanguage, codeLanguages: languages }) }),
       EditorView.lineWrapping,
       syntaxHighlighting(highlight),
+      autocompletion({ override: [wikilinkCompletions(suggest)], activateOnTyping: true }),
       EditorView.contentAttributes.of({
         'aria-label': 'Editor da nota (Markdown)',
         spellcheck: 'true',
         lang: 'pt-BR',
       }),
     ],
-    [],
+    [suggest],
   );
 
   return (

@@ -1,6 +1,13 @@
 'use client';
 
-import { Columns2Icon, EyeIcon, PanelRightIcon, PencilIcon } from 'lucide-react';
+import {
+  Columns2Icon,
+  EyeIcon,
+  PanelRightIcon,
+  PencilIcon,
+  StarIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -13,15 +20,25 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { Button } from '@/components/ui/button';
-import { ApiError, createConflictCopy, readNote, saveNote, type NoteDto } from '@/lib/client/api';
+import {
+  ApiError,
+  createConflictCopy,
+  readNote,
+  restoreVersion,
+  saveNote,
+  trashNote,
+  type CommitDto,
+  type NoteDto,
+} from '@/lib/client/api';
 import { loadDraft, removeDraft, saveDraft, type Draft } from '@/lib/editor/drafts';
 import { parseNote } from '@/lib/notes/parse';
 import { LinkResolver } from '@/lib/notes/resolve';
 import { cn } from '@/lib/utils';
-import { noteHref, useVault } from '../vault-context';
+import { noteHref, useShell, useVault } from '../vault-context';
 import { createEditorSession } from './editor-session';
 import { MarkdownPreview } from './markdown-preview';
 import { NoteDetails } from './note-details';
+import { NoteHistory } from './note-history';
 import { SaveStatus } from './save-status';
 
 const MarkdownEditor = dynamic(() => import('./markdown-editor'), {
@@ -35,6 +52,8 @@ const VIEW_KEY = 'sb:view-mode';
 export function NoteWorkspace({ note }: { note: NoteDto }) {
   const router = useRouter();
   const { tree, timeZone, storeKind } = useVault();
+  const { openNewNote, favorites, toggleFavorite, recordRecent } = useShell();
+  const favorite = favorites.includes(note.path);
   const [content, setContent] = useState(note.content);
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(null);
   const [notice, setNotice] = useState<{ text: string; href?: string } | null>(null);
@@ -85,6 +104,10 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
     else if (draft) removeDraft(note.path);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [note.path, note.content]);
+
+  // Sugestões de [[links]] acompanham a árvore; a nota entra nas recentes deste navegador.
+  useEffect(() => session.setNotePaths(tree.notes), [session, tree.notes]);
+  useEffect(() => recordRecent(note.path), [note.path]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rascunho local a cada alteração não confirmada.
   useEffect(() => {
@@ -217,6 +240,58 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
     setBusy(false);
   }
 
+  const createFromLink = useCallback((title: string) => openNewNote({ title }), [openNewNote]);
+
+  async function moveToTrash() {
+    if (controller.getState().unsaved) {
+      setNotice({ text: 'Salve as alterações (Ctrl+S) antes de mover a nota para a lixeira.' });
+      return;
+    }
+    if (!window.confirm('Mover esta nota para a lixeira? Você pode restaurá-la depois.')) return;
+    setBusy(true);
+    try {
+      await trashNote({ path: note.path, expectedSha: controller.getState().baseSha });
+      removeDraft(note.path);
+      router.push('/trash');
+      router.refresh();
+    } catch (error) {
+      setNotice({
+        text: error instanceof ApiError ? error.message : 'Sem conexão: a nota não foi movida.',
+      });
+      setBusy(false);
+    }
+  }
+
+  async function restoreToVersion(commit: CommitDto) {
+    if (controller.getState().unsaved) {
+      setNotice({ text: 'Salve as alterações (Ctrl+S) antes de restaurar uma versão.' });
+      return;
+    }
+    if (
+      !window.confirm(
+        'Restaurar esta versão? Ela vira a versão atual; nada do histórico é apagado.',
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      const restored = await restoreVersion({
+        path: note.path,
+        commitSha: commit.sha,
+        expectedSha: controller.getState().baseSha,
+      });
+      replaceEditor(restored.content);
+      controller.reset(restored.content, restored.sha);
+      removeDraft(note.path);
+      setNotice({ text: 'Versão restaurada como versão atual.' });
+    } catch (error) {
+      setNotice({
+        text: error instanceof ApiError ? error.message : 'Sem conexão: nada foi alterado.',
+      });
+    }
+    setBusy(false);
+  }
+
   function restoreDraft(draft: Draft) {
     replaceEditor(draft.content);
     // Versão esperada = a que o rascunho conhecia; se o remoto mudou, a gravação vira conflito.
@@ -239,6 +314,28 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
           </p>
         </div>
         <SaveStatus state={state} onRetry={() => controller.saveNow()} />
+        <div className="flex items-center gap-1">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-pressed={favorite}
+            aria-label={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+            title={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+            onClick={() => toggleFavorite(note.path)}
+          >
+            <StarIcon className={favorite ? 'text-warning fill-current' : undefined} />
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Mover para a lixeira"
+            title="Mover para a lixeira"
+            disabled={busy}
+            onClick={moveToTrash}
+          >
+            <Trash2Icon />
+          </Button>
+        </div>
         <div className="flex items-center gap-1" role="group" aria-label="Modo de exibição">
           {(
             [
@@ -365,6 +462,7 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
                 readOnly={pendingDraft !== null}
                 onReady={session.attachView}
                 onChange={onEditorChange}
+                suggest={session.suggest}
               />
             </div>
           </section>
@@ -372,7 +470,12 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
         {showPreview ? (
           <section aria-label="Visualização" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
             <div className="mx-auto max-w-3xl">
-              <MarkdownPreview content={deferred} path={note.path} resolver={resolver} />
+              <MarkdownPreview
+                content={deferred}
+                path={note.path}
+                resolver={resolver}
+                onCreateNote={createFromLink}
+              />
             </div>
           </section>
         ) : null}
@@ -382,7 +485,12 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
             aria-label="Detalhes da nota"
             className="bg-sidebar w-72 shrink-0 overflow-y-auto border-l max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-20"
           >
-            <NoteDetails note={parsed} resolver={resolver} />
+            <NoteDetails
+              note={parsed}
+              resolver={resolver}
+              onCreateNote={createFromLink}
+              history={<NoteHistory path={note.path} onRestore={restoreToVersion} />}
+            />
           </aside>
         ) : null}
       </div>

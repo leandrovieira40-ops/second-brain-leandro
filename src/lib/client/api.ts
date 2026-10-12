@@ -102,3 +102,69 @@ export async function saveNote(input: {
   const retryable = response.status >= 500 || response.status === 429 || response.status === 408;
   return { kind: 'error', retryable, message };
 }
+
+export interface TrashItemDto {
+  path: string;
+  originalPath: string;
+  sha: string;
+  size: number;
+}
+
+export interface CommitDto {
+  sha: string;
+  message: string;
+  date: string;
+  author: string | null;
+}
+
+export function captureNote(text: string) {
+  return request<{ path: string; sha: string }>('/api/notes', {
+    method: 'POST',
+    body: JSON.stringify({ mode: 'capture', text }),
+  });
+}
+
+export function trashNote(input: { path: string; expectedSha: string }) {
+  return request<{ trashPath: string }>('/api/notes/trash', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function listTrash() {
+  return request<{ items: TrashItemDto[] }>('/api/trash');
+}
+
+export function restoreFromTrash(trashPath: string) {
+  return request<{ path: string }>('/api/trash/restore', {
+    method: 'POST',
+    body: JSON.stringify({ trashPath }),
+  });
+}
+
+export function purgeFromTrash(input: { trashPath: string; expectedSha: string }) {
+  return request<{ ok: true }>('/api/trash/purge', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function noteHistory(path: string) {
+  return request<{ supported: boolean; commits: CommitDto[] }>(
+    `/api/notes/history?path=${encodeURIComponent(path)}`,
+  );
+}
+
+export function readVersion(path: string, commit: string) {
+  return request<NoteDto>(
+    `/api/notes/version?path=${encodeURIComponent(path)}&commit=${encodeURIComponent(commit)}`,
+  );
+}
+
+export function restoreVersion(input: { path: string; commitSha: string; expectedSha: string }) {
+  return request<NoteDto>('/api/notes/version', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function setFavorite(path: string, favorite: boolean) {
+  return request<{ notes: string[] }>('/api/favorites', {
+    method: 'PUT',
+    body: JSON.stringify({ path, favorite }),
+  });
+}
