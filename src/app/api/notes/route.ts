@@ -33,10 +33,12 @@ export async function POST(request: Request) {
     const result =
       input.mode === 'new'
         ? await service.create({ title: input.title, folder: input.folder, type: input.type })
-        : await service.createConflictCopy({
-            sourcePath: input.sourcePath,
-            content: input.content,
-          });
+        : input.mode === 'capture'
+          ? await service.capture(input.text)
+          : await service.createConflictCopy({
+              sourcePath: input.sourcePath,
+              content: input.content,
+            });
     log('info', 'notes.create', {
       mode: input.mode,
       path: pathHash(result.path),

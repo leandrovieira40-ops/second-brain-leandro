@@ -20,7 +20,13 @@ function vaultLabel(): string {
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await requireSession();
   const { appName, timeZone } = readAppConfig();
-  let tree: VaultTree = { notes: [], folders: [], attachments: [] };
+  let tree: VaultTree = {
+    notes: [],
+    folders: [],
+    attachments: [],
+    trashCount: 0,
+    favoritesSha: null,
+  };
   let vaultError: string | null = null;
   let storeKind: 'github' | 'fs' | 'memory' = 'github';
   try {
