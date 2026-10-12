@@ -1,4 +1,4 @@
-import { encodeText } from '@/lib/vault/blob';
+import { encodeText, gitBlobShaOfText } from '@/lib/vault/blob';
 import {
   AlreadyExistsError,
   ConflictError,
@@ -67,9 +67,18 @@ export interface SaveResult extends WriteResult {
   alreadyApplied: boolean;
 }
 
+/** Alteração confirmada no vault (conteúdo ausente = arquivo removido). */
+export interface WrittenChange {
+  path: string;
+  content?: string;
+  sha?: string;
+}
+
 export interface NotesServiceOptions {
   timeZone: string;
   now?: () => Date;
+  /** Chamado depois de cada gravação CONFIRMADA (ex.: atualizar o índice derivado). */
+  onWrite?: (changes: WrittenChange[]) => void;
 }
 
 const ORIGIN_TRAILER = 'Second-Brain-Origin: web';
@@ -152,6 +161,7 @@ export class NotesService {
         expectedSha: input.expectedSha,
         message: commitMessage(input.summary ?? `Atualiza ${path}`),
       });
+      this.written([{ path, content: input.content, sha: result.sha }]);
       return { ...result, alreadyApplied: false };
     } catch (error) {
       if (!(error instanceof ConflictError)) throw error;
@@ -183,9 +193,11 @@ export class NotesService {
       const path = assertNotePath(`${INBOX_FOLDER}/${n === 1 ? name : `${name} ${n}`}.md`);
       if (taken.has(collisionKey(path))) continue;
       try {
-        return await this.store.create(path, content, {
+        const result = await this.store.create(path, content, {
           message: commitMessage(`Captura rápida: ${path}`),
         });
+        this.written([{ path, content, sha: result.sha }]);
+        return result;
       } catch (error) {
         if (!(error instanceof AlreadyExistsError)) throw error;
       }
@@ -214,6 +226,7 @@ export class NotesService {
       ],
       { message: commitMessage(`Move ${path} para a lixeira`) },
     );
+    this.written([{ path }]);
     return { trashPath };
   }
 
@@ -253,6 +266,7 @@ export class NotesService {
       ],
       { message: commitMessage(`Restaura ${target} da lixeira`) },
     );
+    this.written([{ path: target, content: file.content, sha: gitBlobShaOfText(file.content) }]);
     return { path: target };
   }
 
@@ -319,7 +333,17 @@ export class NotesService {
         `Já existe uma nota com esse nome nesta pasta (${basename(path)}).`,
       );
     }
-    return this.store.create(path, content, { message: commitMessage(summary) });
+    const result = await this.store.create(path, content, { message: commitMessage(summary) });
+    this.written([{ path, content, sha: result.sha }]);
+    return result;
+  }
+
+  private written(changes: WrittenChange[]): void {
+    try {
+      this.options.onWrite?.(changes);
+    } catch {
+      // O índice é derivado: uma falha aqui nunca desfaz nem esconde a gravação confirmada.
+    }
   }
 
   private assertSize(content: string) {

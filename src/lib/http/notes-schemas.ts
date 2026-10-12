@@ -36,3 +36,11 @@ export const saveNoteSchema = z.object({
 
 export type CreateNoteRequest = z.infer<typeof createNoteSchema>;
 export type SaveNoteRequest = z.infer<typeof saveNoteSchema>;
+
+export const searchQuerySchema = z.object({
+  q: z.string().max(200).default(''),
+  type: z.string().max(40).optional(),
+  tag: z.string().max(100).optional(),
+  folder: z.string().max(400).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});

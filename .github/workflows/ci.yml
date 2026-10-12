@@ -23,6 +23,7 @@ jobs:
       AUTH_SECRET: ci-segredo-ficticio-que-nao-pode-aparecer-no-bundle-0123456789
       AUTH_PASSWORD_HASH: scrypt:16384:8:1:Y2ktc2FsLWZpY3RpY2lv:Y2ktaGFzaC1maWN0aWNpby1wYXJhLXRlc3Rl
       GITHUB_VAULT_TOKEN: github_pat_FICTICIO_SO_PARA_VERIFICAR_O_BUNDLE_0123456789
+      GITHUB_WEBHOOK_SECRET: ci-webhook-ficticio-que-nao-pode-aparecer-0123456789
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

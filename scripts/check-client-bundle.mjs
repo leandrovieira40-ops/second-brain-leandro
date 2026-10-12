@@ -4,7 +4,13 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const names = ['AUTH_SECRET', 'AUTH_PASSWORD_HASH', 'GITHUB_VAULT_TOKEN'];
+const names = [
+  'AUTH_SECRET',
+  'AUTH_PASSWORD_HASH',
+  'GITHUB_VAULT_TOKEN',
+  'DATABASE_URL',
+  'GITHUB_WEBHOOK_SECRET',
+];
 const secrets = names
   .map((name) => [name, process.env[name]])
   .filter(([, value]) => value && value.length >= 16);

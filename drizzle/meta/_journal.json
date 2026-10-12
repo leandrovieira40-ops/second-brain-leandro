@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791843406919,
+      "tag": "0000_extensoes-e-busca-pt",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791843414490,
+      "tag": "0001_indice-de-notas",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791843478813,
+      "tag": "0002_anexos",
+      "breakpoints": true
+    }
+  ]
+}

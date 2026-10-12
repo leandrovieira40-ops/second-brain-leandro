@@ -242,3 +242,51 @@ describe('NotesService histórico', () => {
     expect((await service.history('a.md')).commits).toHaveLength(3);
   });
 });
+
+describe('NotesService.onWrite (índice derivado)', () => {
+  it('avisa só depois de gravações confirmadas, com conteúdo e SHA', async () => {
+    const store = new MemoryVaultStore({ 'a.md': 'v1' });
+    const changes: { path: string; content?: string; sha?: string }[][] = [];
+    const service = new NotesService(store, {
+      timeZone: 'America/Sao_Paulo',
+      now,
+      onWrite: (c) => changes.push(c),
+    });
+    const v1 = await store.read('a.md');
+
+    await service.save({ path: 'a.md', content: 'v2', expectedSha: v1.sha });
+    await expect(
+      service.save({ path: 'a.md', content: 'v3', expectedSha: v1.sha }),
+    ).rejects.toBeInstanceOf(ConflictError);
+    const created = await service.create({ title: 'Nova', folder: 'x', type: 'note' });
+    const { trashPath } = await service.trash({
+      path: 'a.md',
+      expectedSha: (await store.read('a.md')).sha,
+    });
+    await service.restore(trashPath);
+
+    expect(changes.map((batch) => batch.map((c) => [c.path, c.content !== undefined]))).toEqual([
+      [['a.md', true]],
+      [[created.path, true]],
+      [['a.md', false]],
+      [['a.md', true]],
+    ]);
+    expect(changes[0]![0]).toEqual({ path: 'a.md', content: 'v2', sha: gitBlobShaOfText('v2') });
+  });
+
+  it('uma falha no callback não desfaz a gravação', async () => {
+    const store = new MemoryVaultStore({ 'a.md': 'v1' });
+    const service = new NotesService(store, {
+      timeZone: 'America/Sao_Paulo',
+      onWrite: () => {
+        throw new Error('índice fora do ar');
+      },
+    });
+    await service.save({
+      path: 'a.md',
+      content: 'v2',
+      expectedSha: (await store.read('a.md')).sha,
+    });
+    expect((await store.read('a.md')).content).toBe('v2');
+  });
+});

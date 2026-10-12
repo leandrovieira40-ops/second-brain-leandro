@@ -12,6 +12,8 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/login',
   '/api/auth/logout',
   '/api/health',
+  // Server-to-server: autenticado por assinatura HMAC no próprio handler.
+  '/api/webhooks/github',
   '/robots.txt',
 ]);
 
