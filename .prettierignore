@@ -1,0 +1,8 @@
+node_modules
+.next
+coverage
+playwright-report
+test-results
+.e2e-vault
+package-lock.json
+next-env.d.ts

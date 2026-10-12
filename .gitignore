@@ -1,0 +1,33 @@
+# dependências
+/node_modules
+
+# build e testes
+/.next/
+/out/
+/build
+/coverage
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/
+*.tsbuildinfo
+next-env.d.ts
+
+# vault temporário usado pelos testes E2E (gerado a partir de fixtures sintéticas)
+/.e2e-vault/
+
+# segredos e ambiente — NUNCA versionar
+.env
+.env.*
+!.env.example
+.vercel
+
+# dados pessoais: exports e cópias de vault não pertencem a este repositório
+/vault/
+/exports/
+*.vault.zip
+
+# sistema
+.DS_Store
+*.log
+npm-debug.log*
