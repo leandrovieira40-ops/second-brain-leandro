@@ -109,7 +109,7 @@ export interface Backlink {
   context: string;
 }
 
-/** Notas que apontam para `path`, com a linha onde o link aparece. */
+/** Notas que apontam para `path`, uma entrada por linha onde o link aparece. */
 export async function backlinksTo(db: Database, path: string): Promise<Backlink[]> {
   const result = await db.execute<{
     source_path: string;
@@ -117,10 +117,11 @@ export async function backlinksTo(db: Database, path: string): Promise<Backlink[
     line: number;
     context: string;
   }>(sql`
-    select l.source_path, n.title, l.line, l.context
+    select l.source_path, min(n.title) as title, l.line, min(l.context) as context
     from links l join notes n on n.path = l.source_path
     where l.target_path = ${path} and l.source_path <> ${path}
-    order by n.title asc, l.line asc
+    group by l.source_path, l.line
+    order by min(n.title) asc, l.line asc
     limit 200
   `);
   return result.rows.map((row) => ({

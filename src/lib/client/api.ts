@@ -168,3 +168,78 @@ export function setFavorite(path: string, favorite: boolean) {
     body: JSON.stringify({ path, favorite }),
   });
 }
+
+// --- Índice derivado (Fase 2B) --------------------------------------------------------------
+
+export interface SearchHitDto {
+  path: string;
+  title: string;
+  type: string;
+  tags: string[];
+  /** Trecho com os termos entre \u0002 e \u0003 (texto puro; nunca HTML). */
+  snippet: string;
+  rank: number;
+}
+
+export function searchNotes(
+  params: { q: string; tag?: string; type?: string; folder?: string; limit?: number },
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') query.set(key, String(value));
+  }
+  return request<{ available: boolean; hits: SearchHitDto[] }>(`/api/search?${query}`, { signal });
+}
+
+export interface BacklinkDto {
+  sourcePath: string;
+  sourceTitle: string;
+  line: number;
+  context: string;
+}
+
+export function noteBacklinks(path: string, signal?: AbortSignal) {
+  return request<{ available: boolean; backlinks: BacklinkDto[] }>(
+    `/api/notes/backlinks?path=${encodeURIComponent(path)}`,
+    { signal },
+  );
+}
+
+export function listTags() {
+  return request<{ available: boolean; tags: { tag: string; count: number }[] }>('/api/tags');
+}
+
+export type IndexStatusDto =
+  | { available: false }
+  | {
+      available: true;
+      noteCount: number;
+      indexedAt: string | null;
+      lastError: string | null;
+      brokenLinks: { sourcePath: string; targetRaw: string; line: number }[];
+      orphans: string[];
+    };
+
+export function indexStatus() {
+  return request<IndexStatusDto>('/api/index');
+}
+
+export function syncIndex() {
+  return request<{ added: number; updated: number; removed: number; total: number }>(
+    '/api/index/sync',
+    { method: 'POST', body: '{}' },
+  );
+}
+
+export function renameNote(input: {
+  path: string;
+  expectedSha: string;
+  title: string;
+  folder: string;
+}) {
+  return request<{ path: string; sha: string; updatedNotes: string[] }>('/api/notes/rename', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}

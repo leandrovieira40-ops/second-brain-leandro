@@ -18,11 +18,14 @@ export function NoteDetails({
   note,
   resolver,
   onCreateNote,
+  backlinks,
   history,
 }: {
   note: ParsedNote;
   resolver: LinkResolver;
   onCreateNote: (title: string) => void;
+  /** Links de entrada (vêm do índice). */
+  backlinks: React.ReactNode;
   /** Seção de histórico (vem da área da nota, que sabe restaurar versões). */
   history: React.ReactNode;
 }) {
@@ -141,6 +144,8 @@ export function NoteDetails({
           <p className="text-muted-foreground text-xs">Nenhum [[link]] nesta nota.</p>
         )}
       </section>
+
+      {backlinks}
 
       {history}
     </div>

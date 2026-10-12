@@ -30,3 +30,16 @@ export function clearRecents(): void {
     // nada a limpar
   }
 }
+
+/** A nota mudou de caminho (renomear/mover): a entrada acompanha, na mesma posição. */
+export function renameRecent(from: string, to: string): string[] {
+  const current = loadRecents();
+  if (!current.includes(from)) return current;
+  const next = [...new Set(current.map((item) => (item === from ? to : item)))];
+  try {
+    localStorage.setItem(KEY, JSON.stringify(next));
+  } catch {
+    // Sem armazenamento local: a lista só não persiste.
+  }
+  return next;
+}

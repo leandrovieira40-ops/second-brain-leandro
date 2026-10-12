@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { requireSession } from '@/lib/auth/guard';
-import { ConfigError, readAppConfig, readVaultConfig } from '@/lib/config/env';
+import { ConfigError, readAppConfig, readDatabaseUrl, readVaultConfig } from '@/lib/config/env';
 import { getFavoritesService, getNotesService } from '@/lib/services';
 import type { VaultTree } from '@/lib/services/notes';
 import { VaultError } from '@/lib/vault/errors';
@@ -14,6 +14,14 @@ function vaultLabel(): string {
       : 'Pasta local';
   } catch {
     return 'Vault não configurado';
+  }
+}
+
+function searchAvailable(): boolean {
+  try {
+    return readDatabaseUrl() !== null;
+  } catch {
+    return false; // DATABASE_URL inválida: a interface trata como índice indisponível
   }
 }
 
@@ -43,7 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <Suspense>
       <AppShell
         appName={appName}
-        vault={{ tree, storeKind, timeZone, error: vaultError }}
+        vault={{ tree, storeKind, timeZone, searchAvailable: searchAvailable(), error: vaultError }}
         vaultLabel={vaultLabel()}
         initialFavorites={favorites}
       >

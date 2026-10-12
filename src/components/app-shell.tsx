@@ -7,8 +7,10 @@ import {
   MonitorIcon,
   MoonIcon,
   PlusIcon,
+  SearchIcon,
   StarIcon,
   SunIcon,
+  TagIcon,
   Trash2Icon,
   ZapIcon,
 } from 'lucide-react';
@@ -20,12 +22,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ApiError, logout, setFavorite } from '@/lib/client/api';
 import { clearAllDrafts, listDraftPaths } from '@/lib/editor/drafts';
-import { clearRecents, loadRecents, pushRecent } from '@/lib/editor/recents';
+import { clearRecents, loadRecents, pushRecent, renameRecent } from '@/lib/editor/recents';
 import { noteName } from '@/lib/vault/paths';
 import { cn } from '@/lib/utils';
 import { CaptureDialog } from './capture-dialog';
 import { FileTree } from './file-tree';
 import { NewNoteDialog } from './new-note-dialog';
+import { SearchDialog } from './search-dialog';
 import {
   noteHref,
   ShellProvider,
@@ -58,7 +61,8 @@ export function AppShell({
     key: 0,
   });
   const [captureOpen, setCaptureOpen] = useState(false);
-  const [captured, setCaptured] = useState<{ path: string; href: string } | null>(null);
+  const [flash, setFlash] = useState<{ text: string; href?: string } | null>(null);
+  const [search, setSearch] = useState({ open: false, key: 0 });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [favorites, setFavorites] = useState(initialFavorites);
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
@@ -77,8 +81,17 @@ export function AppShell({
     setNewNote((current) => ({ open: true, title: initial?.title ?? '', key: current.key + 1 }));
   }, []);
 
+  const openSearch = useCallback(() => {
+    setSearch((current) => (current.open ? current : { open: true, key: current.key + 1 }));
+  }, []);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        openSearch();
+        return;
+      }
       if (!event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.code === 'KeyN') {
         event.preventDefault();
@@ -90,7 +103,7 @@ export function AppShell({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [openNewNote]);
+  }, [openNewNote, openSearch]);
 
   const shell = useMemo<ShellActions>(
     () => ({
@@ -110,8 +123,15 @@ export function AppShell({
       },
       recents,
       recordRecent: (path: string) => setRecents(pushRecent(path)),
+      openSearch,
+      notify: (text: string, href?: string) => setFlash({ text, href }),
+      notePathChanged: (from: string, to: string) => {
+        // O servidor já atualizou o arquivo de favoritos no mesmo commit da renomeação.
+        setFavorites((current) => current.map((path) => (path === from ? to : path)));
+        setRecents(renameRecent(from, to));
+      },
     }),
-    [openNewNote, favorites, recents],
+    [openNewNote, openSearch, favorites, recents],
   );
 
   const existing = useMemo(() => new Set(vault.tree.notes), [vault.tree.notes]);
@@ -170,6 +190,21 @@ export function AppShell({
                 </Button>
               </div>
             </div>
+            <div className="px-2 pb-1">
+              <button
+                type="button"
+                onClick={() => {
+                  closeMobile();
+                  openSearch();
+                }}
+                className="text-muted-foreground hover:bg-muted flex h-8 w-full items-center gap-2 rounded-md border px-2 text-sm"
+                aria-label="Buscar (Ctrl+K)"
+              >
+                <SearchIcon className="size-4" />
+                <span className="flex-1 text-left">Buscar</span>
+                <kbd className="text-xs opacity-70">Ctrl+K</kbd>
+              </button>
+            </div>
             <nav className="space-y-0.5 px-2 pb-2" aria-label="Atalhos">
               <SidebarLink
                 href="/"
@@ -178,6 +213,14 @@ export function AppShell({
                 icon={<HomeIcon />}
               >
                 Início
+              </SidebarLink>
+              <SidebarLink
+                href="/tags"
+                active={pathname === '/tags'}
+                onClick={closeMobile}
+                icon={<TagIcon />}
+              >
+                Tags
               </SidebarLink>
               <SidebarLink
                 href="/trash"
@@ -286,26 +329,24 @@ export function AppShell({
               </Button>
               <span className="truncate text-sm font-medium">{appName}</span>
             </div>
-            {captured ? (
+            {flash ? (
               <p
                 role="status"
                 className="bg-accent text-accent-foreground flex items-center gap-2 border-b px-4 py-2 text-sm"
               >
                 <span className="flex-1">
-                  Capturado em {captured.path}.{' '}
-                  <Link
-                    href={captured.href}
-                    className="underline underline-offset-2"
-                    onClick={() => setCaptured(null)}
-                  >
-                    Abrir
-                  </Link>
+                  {flash.text}{' '}
+                  {flash.href ? (
+                    <Link
+                      href={flash.href}
+                      className="underline underline-offset-2"
+                      onClick={() => setFlash(null)}
+                    >
+                      Abrir
+                    </Link>
+                  ) : null}
                 </span>
-                <button
-                  type="button"
-                  className="text-xs underline"
-                  onClick={() => setCaptured(null)}
-                >
+                <button type="button" className="text-xs underline" onClick={() => setFlash(null)}>
                   Fechar
                 </button>
               </p>
@@ -324,7 +365,12 @@ export function AppShell({
         <CaptureDialog
           open={captureOpen}
           onOpenChange={setCaptureOpen}
-          onCaptured={(path, href) => setCaptured({ path, href })}
+          onCaptured={(path, href) => setFlash({ text: `Capturado em ${path}.`, href })}
+        />
+        <SearchDialog
+          key={search.key}
+          open={search.open}
+          onOpenChange={(open) => setSearch((current) => ({ ...current, open }))}
         />
       </ShellProvider>
     </VaultProvider>

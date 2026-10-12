@@ -31,7 +31,7 @@ Demonstrado por `e2e/notes.spec.ts` ("criar, salvar, fechar, reabrir…") contra
 com o adaptador de pasta local. Falta repetir no ambiente publicado com o GitHub real
 ([DEPLOYMENT.md §4](./DEPLOYMENT.md#4-verificação-pós-deploy-obrigatória)).
 
-## Fase 2 — Experiência de conhecimento 🚧
+## Fase 2 — Experiência de conhecimento 🚧 (2A ✅ · 2B quase completa)
 
 ### 2A — sem banco de dados ✅
 
@@ -46,17 +46,24 @@ com o adaptador de pasta local. Falta repetir no ambiente publicado com o GitHub
 
 ### 2B — com índice derivado (PostgreSQL)
 
-Postgres (Neon) + Drizzle; índice derivado com webhook `push` e reconciliação; backlinks com
-contexto; busca textual global (Ctrl+K) com filtros e trechos; página de tags; renomear/mover com
-atualização atômica dos links que apontam para a nota; exportação (zip) e importação de vault; rate
-limit de login no banco; GitHub OAuth.
+- [x] PostgreSQL (Neon em produção) + Drizzle; migrações SQL versionadas e aplicadas por comando
+- [x] Índice incremental por SHA; atualizado após cada gravação, por webhook `push` (HMAC) e pelo botão
+      "Sincronizar índice"; reconstruível; opcional (sem banco, tudo da 2A continua funcionando)
+- [x] Busca global (Ctrl+K): conteúdo em português sem acentos, prefixos, erros de digitação no título,
+      `#tag` como filtro, trechos destacados; sem índice, busca pelos nomes
+- [x] Links de entrada (backlinks) com contexto no painel da nota
+- [x] Página de tags (frontmatter + `#tags` do texto)
+- [x] Renomear/mover com atualização atômica dos links (um commit), título e favoritos
+- [x] Links quebrados e notas sem conexões no Início
+- [ ] Exportação (zip) e importação de vault
+- [ ] Limite de tentativas de login persistido no banco (hoje: memória + Firewall da Vercel)
+- [ ] Opcional: entrar com GitHub (OAuth)
 
 **Critério:** registrar, organizar, encontrar e relacionar conhecimento sem IA. Cenários A, G, H, I.
 
 ## Fase 3 — Grafo e navegação semântica
 
-Grafo global e local (com filtros e limites de renderização), links quebrados e notas órfãs no
-dashboard, mapas de conteúdo, sugestões de relação (hipóteses explicadas, com aceitar/rejeitar/ignorar
+Grafo global e local (com filtros e limites de renderização), mapas de conteúdo, sugestões de relação (hipóteses explicadas, com aceitar/rejeitar/ignorar
 persistidos em `.second-brain/`).
 
 **Critério:** navegar por relações explícitas e revisar sugestões com explicações. Cenário E.
@@ -96,13 +103,13 @@ E2E completos, observabilidade, documentação final. Cenários F–J consolidad
 
 | Cenário | Descrição                                              | Fase | Situação                                                                         |
 | ------- | ------------------------------------------------------ | ---- | -------------------------------------------------------------------------------- |
-| A       | Captura, tags, relação, busca                          | 2    | Parcial: criação, tags e links na Fase 1; busca na 2                             |
+| A       | Captura, tags, relação, busca                          | 2    | ✅ Captura, tags, links e busca no conteúdo testados (E2E com PostgreSQL)        |
 | B       | Importar artigo com resumo revisável                   | 4–5  | Planejado                                                                        |
 | C       | Nota permanente com fontes visíveis                    | 5    | Planejado                                                                        |
 | D       | Pergunta à IA com referências clicáveis                | 5    | Planejado                                                                        |
 | E       | Sugestão de relação explicada                          | 3    | Planejado                                                                        |
 | F       | Falha de rede não indica salvamento falso              | 1    | ✅ Testado (E2E)                                                                 |
-| G       | Alteração externa detectada sem perda                  | 1–2  | ✅ Detecção de conflito testada (E2E); índice na Fase 2                          |
+| G       | Alteração externa detectada sem perda                  | 1–2  | ✅ Conflito testado (E2E); índice sincroniza mudanças externas (integração)      |
 | H       | Vault portável fora da aplicação                       | 1    | Por construção (Markdown no Git); verificação manual em VAULT_SYNC.md            |
 | I       | Restaurar nota excluída                                | 2    | ✅ Lixeira + restauração testadas (E2E); histórico no GitHub testado no contrato |
 | J       | Não autenticado não acessa; nenhuma chave no navegador | 1    | ✅ Testado (E2E + varredura do bundle na CI)                                     |

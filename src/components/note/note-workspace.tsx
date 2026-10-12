@@ -3,6 +3,7 @@
 import {
   Columns2Icon,
   EyeIcon,
+  FolderInputIcon,
   PanelRightIcon,
   PencilIcon,
   StarIcon,
@@ -37,8 +38,10 @@ import { cn } from '@/lib/utils';
 import { noteHref, useShell, useVault } from '../vault-context';
 import { createEditorSession } from './editor-session';
 import { MarkdownPreview } from './markdown-preview';
+import { NoteBacklinks } from './note-backlinks';
 import { NoteDetails } from './note-details';
 import { NoteHistory } from './note-history';
+import { RenameDialog, type RenameOutcome } from './rename-dialog';
 import { SaveStatus } from './save-status';
 
 const MarkdownEditor = dynamic(() => import('./markdown-editor'), {
@@ -52,7 +55,8 @@ const VIEW_KEY = 'sb:view-mode';
 export function NoteWorkspace({ note }: { note: NoteDto }) {
   const router = useRouter();
   const { tree, timeZone, storeKind } = useVault();
-  const { openNewNote, favorites, toggleFavorite, recordRecent } = useShell();
+  const { openNewNote, favorites, toggleFavorite, recordRecent, notify, notePathChanged } =
+    useShell();
   const favorite = favorites.includes(note.path);
   const [content, setContent] = useState(note.content);
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(null);
@@ -60,6 +64,7 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<ViewMode>('edit');
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
 
   const [session] = useState(() => createEditorSession(note, timeZone));
   const { controller } = session;
@@ -262,6 +267,28 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
     }
   }
 
+  function startRename() {
+    if (controller.getState().unsaved) {
+      setNotice({ text: 'Salve as alterações (Ctrl+S) antes de renomear ou mover a nota.' });
+      return;
+    }
+    setRenameOpen(true);
+  }
+
+  function onRenamed(outcome: RenameOutcome) {
+    removeDraft(note.path);
+    notePathChanged(note.path, outcome.path);
+    const count = outcome.updatedNotes.length;
+    notify(
+      count
+        ? `Nota renomeada para ${outcome.path}; links atualizados em ${count} nota${count > 1 ? 's' : ''}.`
+        : `Nota renomeada para ${outcome.path}.`,
+    );
+    setRenameOpen(false);
+    router.replace(noteHref(outcome.path));
+    router.refresh();
+  }
+
   async function restoreToVersion(commit: CommitDto) {
     if (controller.getState().unsaved) {
       setNotice({ text: 'Salve as alterações (Ctrl+S) antes de restaurar uma versão.' });
@@ -324,6 +351,16 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
             onClick={() => toggleFavorite(note.path)}
           >
             <StarIcon className={favorite ? 'text-warning fill-current' : undefined} />
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Renomear ou mover"
+            title="Renomear ou mover"
+            disabled={busy}
+            onClick={startRename}
+          >
+            <FolderInputIcon />
           </Button>
           <Button
             size="icon-sm"
@@ -489,11 +526,21 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
               note={parsed}
               resolver={resolver}
               onCreateNote={createFromLink}
+              backlinks={<NoteBacklinks path={note.path} />}
               history={<NoteHistory path={note.path} onRestore={restoreToVersion} />}
             />
           </aside>
         ) : null}
       </div>
+      {renameOpen ? (
+        <RenameDialog
+          open
+          onOpenChange={setRenameOpen}
+          path={note.path}
+          expectedSha={state.baseSha}
+          onRenamed={onRenamed}
+        />
+      ) : null}
     </div>
   );
 }

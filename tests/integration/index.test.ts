@@ -184,6 +184,17 @@ describe.skipIf(!url)('índice derivado (PostgreSQL real)', () => {
     expect((await index.status()).noteCount).toBe(5);
   });
 
+  it('backlinks: vários links na mesma linha contam como uma entrada', async () => {
+    const { index } = await indexed();
+    const text =
+      'Dois: [[Posicionamento]] e [[Posicionamento#Definição|def]].\nOutra linha: [[Positioning]]';
+    await index.apply([{ path: '00-Inbox/Dupla.md', content: text, sha: gitBlobShaOfText(text) }]);
+    const lines = (await backlinksTo(db, '04-Concepts/Posicionamento.md'))
+      .filter((b) => b.sourcePath === '00-Inbox/Dupla.md')
+      .map((b) => b.line);
+    expect(lines).toEqual([1, 2]);
+  });
+
   it('sincronizações simultâneas são serializadas e o resultado é consistente', async () => {
     const store = new MemoryVaultStore(VAULT);
     const results = await Promise.all([

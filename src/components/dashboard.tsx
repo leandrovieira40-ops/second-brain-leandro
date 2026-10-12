@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { listDraftPaths } from '@/lib/editor/drafts';
 import { INBOX_FOLDER } from '@/lib/notes/types';
 import { noteName } from '@/lib/vault/paths';
+import { IndexHealth } from './index-health';
 import { noteHref, useShell, useVault } from './vault-context';
 
 /** Painel inicial: somente indicadores calculados a partir de dados reais do vault e do navegador. */
@@ -131,6 +132,8 @@ export function Dashboard() {
             empty="As notas que você abrir aparecem aqui."
           />
         </div>
+
+        {!vaultError ? <IndexHealth /> : null}
 
         {tree.notes.length === 0 && !vaultError ? (
           <section className="rounded-lg border border-dashed p-6 text-sm">

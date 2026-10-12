@@ -50,7 +50,7 @@ flowchart LR
 
 Linhas tracejadas são componentes planejados (ver [ROADMAP.md](./ROADMAP.md)).
 
-## 2. Estado da implementação (Fase 1)
+## 2. Estado da implementação (Fases 1, 2A e 2B)
 
 | Camada                                                                                               | Situação                                                                     | Arquivo principal                           |
 | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------- |
@@ -63,7 +63,10 @@ Linhas tracejadas são componentes planejados (ver [ROADMAP.md](./ROADMAP.md)).
 | API de notas                                                                                         | ✅ testado (E2E)                                                             | `src/app/api/notes/**`                      |
 | Salvamento confiável (controlador, rascunho local, conflitos)                                        | ✅ testado (unit + E2E)                                                      | `src/lib/editor/*`, `src/components/note/*` |
 | Interface: árvore, filtro, editor, visualização, metadados, links, tema claro/escuro                 | ✅ testado (E2E)                                                             | `src/app/(app)/**`, `src/components/**`     |
-| Banco de dados, busca, backlinks, grafo, ingestão, IA                                                | ⏳ planejado                                                                 | [ROADMAP.md](./ROADMAP.md)                  |
+| Lixeira, histórico, captura rápida, favoritos, autocompletar (Fase 2A)                               | ✅ testado (unit + contrato + E2E)                                           | `src/lib/services/*`, `src/components/**`   |
+| Índice derivado em PostgreSQL: busca, backlinks, tags, webhook (Fase 2B)                             | ✅ testado (integração com PostgreSQL real + E2E)                            | `src/lib/db/*`, `src/lib/index/*`           |
+| Renomear/mover com reescrita atômica de links (Fase 2B)                                              | ✅ testado (unit + integração + E2E)                                         | `src/lib/notes/rename.ts`                   |
+| Grafo, ingestão de fontes, IA                                                                        | ⏳ planejado                                                                 | [ROADMAP.md](./ROADMAP.md)                  |
 
 ## 3. Módulos e fronteiras
 
@@ -171,13 +174,15 @@ A aplicação vê a mudança na próxima leitura e a protege na gravação via S
 automática bidirecional prometida. O fluxo recomendado e as regras de conflito estão em
 [VAULT_SYNC.md](./VAULT_SYNC.md) e [ADR-0007](./ADR/0007-edicao-local-e-sincronizacao.md).
 
-Fase 2 adiciona o **índice derivado** atualizado por webhook `push` do GitHub (com verificação HMAC),
-reconciliação manual ("sincronizar agora") e varredura diária; cada linha do índice guarda o SHA do
-blob, então reprocessar é idempotente e só o que mudou é reindexado.
+Fase 2B adiciona o **índice derivado** ([ADR-0013](./ADR/0013-indice-derivado-e-sincronizacao.md)),
+atualizado logo após cada gravação da aplicação (`after()`, sem atrasar a resposta), por webhook
+`push` do GitHub (assinatura HMAC verificada), pelo botão "Sincronizar índice" e antes de cada
+renomeação. Cada linha guarda o SHA do blob, então reprocessar é idempotente e só o que mudou é
+relido. Uma varredura periódica (cron) ainda não existe: sem webhook, mudanças externas entram na
+próxima sincronização.
 
 ### 4.5 Fluxos futuros (resumo)
 
-- **Busca (Fase 2):** PostgreSQL full-text (`portuguese` + `unaccent`) e `pg_trgm` para títulos.
 - **Ingestão (Fase 4):** recepção → validação de tipo/tamanho → extração → nota de fonte → metadados
   → IA opcional → indexação → sugestões → revisão. Estados: pendente, em processamento, concluído,
   concluído parcialmente, falhou, requer revisão. Uploads grandes vão do navegador direto para o
@@ -188,12 +193,12 @@ blob, então reprocessar é idempotente e só o que mudou é reindexado.
 
 ## 5. Ambientes
 
-| Ambiente                   | Vault                                                      | Banco                      | Autenticação                           | Observações                                          |
-| -------------------------- | ---------------------------------------------------------- | -------------------------- | -------------------------------------- | ---------------------------------------------------- |
-| Local (`npm run dev`)      | Pasta local (`VAULT_STORE=fs`) **ou** repo GitHub de teste | — (Fase 2: Postgres local) | Senha local                            | Nunca use o vault real para experimentos destrutivos |
-| Testes (Vitest/Playwright) | Fixtures **sintéticas** copiadas para `.e2e-vault/`        | —                          | Senha de teste gerada no próprio teste | Sem rede externa                                     |
-| Preview (Vercel)           | Repo GitHub **de teste**                                   | Branch de banco (Neon)     | Senha própria + Deployment Protection  | Nunca aponte preview para o vault real               |
-| Produção (Vercel)          | Repo GitHub privado do vault                               | Banco principal            | Senha + (planejado) GitHub OAuth       | Sem migrações destrutivas automáticas                |
+| Ambiente                   | Vault                                                      | Banco                     | Autenticação                           | Observações                                          |
+| -------------------------- | ---------------------------------------------------------- | ------------------------- | -------------------------------------- | ---------------------------------------------------- |
+| Local (`npm run dev`)      | Pasta local (`VAULT_STORE=fs`) **ou** repo GitHub de teste | PostgreSQL local opcional | Senha local                            | Nunca use o vault real para experimentos destrutivos |
+| Testes (Vitest/Playwright) | Fixtures **sintéticas** copiadas para `.e2e-vault/`        | PostgreSQL descartável    | Senha de teste gerada no próprio teste | Sem rede externa                                     |
+| Preview (Vercel)           | Repo GitHub **de teste**                                   | Branch de banco (Neon)    | Senha própria + Deployment Protection  | Nunca aponte preview para o vault real               |
+| Produção (Vercel)          | Repo GitHub privado do vault                               | Banco principal           | Senha + (planejado) GitHub OAuth       | Sem migrações destrutivas automáticas                |
 
 O adaptador de pasta local **recusa iniciar na Vercel** (sistema de arquivos efêmero).
 
