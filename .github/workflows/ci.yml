@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, tipos, testes, build e E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      # Segredos FICTÍCIOS: o build roda com eles para provar que não vazam para o navegador.
+      AUTH_SECRET: ci-segredo-ficticio-que-nao-pode-aparecer-no-bundle-0123456789
+      AUTH_PASSWORD_HASH: scrypt:16384:8:1:Y2ktc2FsLWZpY3RpY2lv:Y2ktaGFzaC1maWN0aWNpby1wYXJhLXRlc3Rl
+      GITHUB_VAULT_TOKEN: github_pat_FICTICIO_SO_PARA_VERIFICAR_O_BUNDLE_0123456789
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Nenhum segredo no código enviado ao navegador
+        run: node scripts/check-client-bundle.mjs
+      - name: Vulnerabilidades em dependências de produção
+        run: npm audit --omit=dev --audit-level=high
+      - name: Navegador para os testes E2E
+        run: npx playwright install --with-deps chromium
+      - name: Testes ponta a ponta (build de produção + vault sintético)
+        run: npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
