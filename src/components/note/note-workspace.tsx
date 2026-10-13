@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils';
 import { noteHref, useShell, useVault } from '../vault-context';
 import { createEditorSession } from './editor-session';
 import { MarkdownPreview } from './markdown-preview';
+import { LocalGraph } from '../graph/local-graph';
 import { NoteBacklinks } from './note-backlinks';
 import { NoteDetails } from './note-details';
 import { NoteHistory } from './note-history';
@@ -528,6 +529,7 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
               resolver={resolver}
               onCreateNote={createFromLink}
               rawFrontmatter={findFrontmatter(deferred)?.yaml ?? null}
+              localGraph={<LocalGraph path={note.path} />}
               backlinks={<NoteBacklinks path={note.path} />}
               history={<NoteHistory path={note.path} onRestore={restoreToVersion} />}
             />

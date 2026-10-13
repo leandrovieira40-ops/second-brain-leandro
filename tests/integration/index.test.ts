@@ -10,6 +10,7 @@ import {
   HIGHLIGHT_END,
   HIGHLIGHT_START,
   listTags,
+  noteGraph,
   orphanNotes,
   referencingNotes,
   searchNotes,
@@ -189,6 +190,24 @@ describe.skipIf(!url)('índice derivado (PostgreSQL real)', () => {
     await index.apply([{ path: '00-Inbox/Nova.md' }]);
     expect(await backlinksTo(db, '02-Sources/Books/Ação e reação.md')).toEqual([]);
     expect((await index.status()).noteCount).toBe(5);
+  });
+
+  it('grafo: notas e ligações resolvidas entre elas, sem duplicar direção', async () => {
+    await indexed();
+    const graph = await noteGraph(db);
+    expect(graph.nodes.map((n) => n.path).sort()).toEqual([
+      '00-Inbox/Solta.md',
+      '02-Sources/Books/Ação e reação.md',
+      '03-Permanent-Notes/Posicionar é escolher.md',
+      '04-Concepts/Posicionamento.md',
+    ]);
+    // Link para anexo (diagrama.png) e link quebrado ficam de fora.
+    expect(graph.edges).toEqual([
+      {
+        source: '03-Permanent-Notes/Posicionar é escolher.md',
+        target: '04-Concepts/Posicionamento.md',
+      },
+    ]);
   });
 
   it('backlinks: vários links na mesma linha contam como uma entrada', async () => {

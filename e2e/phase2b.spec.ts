@@ -165,7 +165,7 @@ test.describe('com índice (PostgreSQL)', () => {
     await syncFromDashboard(page);
     await openNote(page, '04-Concepts/Posicionamento.md');
     const panel = await details(page);
-    await expect(panel.getByRole('heading', { name: /Links de entrada \(\d+\)/ })).toBeVisible();
+    await expect(panel.getByRole('heading', { name: /Menções ligadas \(\d+\)/ })).toBeVisible();
     await expect(panel.getByRole('link', { name: 'Posicionamento é escolha' })).toBeVisible();
     await expect(panel.getByRole('link', { name: 'Conteúdo hostil importado' })).toBeVisible();
   });
@@ -178,6 +178,21 @@ test.describe('com índice (PostgreSQL)', () => {
     await all.getByRole('link', { name: /vendas\/consultivas/ }).click();
     await expect(page).toHaveURL(/tag=vendas%2Fconsultivas/);
     await expect(page.getByRole('link', { name: /Posicionamento é escolha/ })).toBeVisible();
+  });
+
+  test('grafo global, grafo local e painel de tags com contagem', async ({ page }) => {
+    await syncFromDashboard(page);
+    const tags = page.getByRole('region', { name: 'Tags do vault' });
+    await expect(tags.getByRole('link', { name: /#estrategia\s*2/ })).toBeVisible();
+
+    await page.getByRole('link', { name: 'Grafo', exact: true }).click();
+    await expect(
+      page.getByRole('img', { name: /Grafo com \d+ notas e \d+ ligações/ }),
+    ).toBeVisible();
+
+    await openNote(page, '04-Concepts/Posicionamento.md');
+    const panel = await details(page);
+    await expect(panel.getByRole('img', { name: /Grafo local com \d+ notas/ })).toBeVisible();
   });
 
   test('nota salva no editor entra na busca sem sincronizar à mão', async ({ page }) => {
