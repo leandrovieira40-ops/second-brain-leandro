@@ -13,6 +13,7 @@ export function NoteDetails({
   resolver,
   onCreateNote,
   rawFrontmatter,
+  localGraph,
   backlinks,
   history,
 }: {
@@ -21,6 +22,8 @@ export function NoteDetails({
   rawFrontmatter: string | null;
   resolver: LinkResolver;
   onCreateNote: (title: string) => void;
+  /** Grafo local (vem do índice). */
+  localGraph: React.ReactNode;
   /** Links de entrada (vêm do índice). */
   backlinks: React.ReactNode;
   /** Seção de histórico (vem da área da nota, que sabe restaurar versões). */
@@ -147,6 +150,8 @@ export function NoteDetails({
           <p className="text-muted-foreground text-xs">Nenhum [[link]] nesta nota.</p>
         )}
       </section>
+
+      {localGraph}
 
       {backlinks}
 

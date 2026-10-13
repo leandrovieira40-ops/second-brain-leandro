@@ -47,7 +47,7 @@ export function NoteBacklinks({ path }: { path: string }) {
         id="backlinks-heading"
         className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
       >
-        Links de entrada{count}
+        Menções ligadas{count}
       </h2>
       {!searchAvailable || current?.kind === 'unavailable' ? (
         <p className="text-muted-foreground text-xs">
@@ -74,8 +74,19 @@ export function NoteBacklinks({ path }: { path: string }) {
                 {backlink.sourceTitle}
               </Link>
               {backlink.context ? (
-                <p className="text-muted-foreground line-clamp-2 pl-5 text-xs">
-                  {backlink.context}
+                <p className="text-muted-foreground line-clamp-3 pl-5 text-xs">
+                  {backlink.context.split(/(!?\[\[[^\]\n]+\]\])/).map((part, index) =>
+                    index % 2 === 1 ? (
+                      <mark
+                        key={index}
+                        className="bg-accent text-accent-foreground rounded-sm px-0.5"
+                      >
+                        {part}
+                      </mark>
+                    ) : (
+                      <span key={index}>{part}</span>
+                    ),
+                  )}
                 </p>
               ) : null}
             </li>

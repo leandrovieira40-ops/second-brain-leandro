@@ -186,3 +186,27 @@ export async function orphanNotes(db: Database, limit = 50): Promise<string[]> {
   `);
   return result.rows.map((row) => row.path);
 }
+
+export interface GraphData {
+  nodes: { path: string; title: string; tags: string[] }[];
+  /** Ligações entre notas (sem direção repetida; links para anexos e quebrados ficam de fora). */
+  edges: { source: string; target: string }[];
+}
+
+/** Grafo do vault para a visão em grafo: notas e os links resolvidos entre elas. */
+export async function noteGraph(db: Database, limit = 5000): Promise<GraphData> {
+  const nodes = await db.execute<{ path: string; title: string; tags: string[] }>(sql`
+    select path, title, tags from notes order by path limit ${limit}
+  `);
+  const edges = await db.execute<{ source: string; target: string }>(sql`
+    select distinct least(l.source_path, l.target_path) as source,
+                    greatest(l.source_path, l.target_path) as target
+    from links l join notes n on n.path = l.target_path
+    where l.target_path is not null and l.target_path <> l.source_path
+  `);
+  const present = new Set(nodes.rows.map((row) => row.path));
+  return {
+    nodes: nodes.rows,
+    edges: edges.rows.filter((edge) => present.has(edge.source) && present.has(edge.target)),
+  };
+}

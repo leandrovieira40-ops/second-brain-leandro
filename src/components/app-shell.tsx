@@ -4,6 +4,7 @@ import {
   HomeIcon,
   LogOutIcon,
   MenuIcon,
+  NetworkIcon,
   MonitorIcon,
   MoonIcon,
   PlusIcon,
@@ -18,7 +19,7 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ApiError, logout, setFavorite } from '@/lib/client/api';
@@ -30,6 +31,7 @@ import { CaptureDialog } from './capture-dialog';
 import { FileTree } from './file-tree';
 import { NewNoteDialog } from './new-note-dialog';
 import { SearchDialog } from './search-dialog';
+import { TagPane } from './tag-pane';
 import {
   noteHref,
   ShellProvider,
@@ -216,6 +218,14 @@ export function AppShell({
                 Início
               </SidebarLink>
               <SidebarLink
+                href="/graph"
+                active={pathname === '/graph'}
+                onClick={closeMobile}
+                icon={<NetworkIcon />}
+              >
+                Grafo
+              </SidebarLink>
+              <SidebarLink
                 href="/tags"
                 active={pathname === '/tags'}
                 onClick={closeMobile}
@@ -307,6 +317,10 @@ export function AppShell({
                   onNavigate={closeMobile}
                 />
               )}
+              <TagPane
+                activeTag={pathname === '/tags' ? searchParams.get('tag') : null}
+                onNavigate={closeMobile}
+              />
             </div>
             <div className="flex items-center justify-between gap-2 border-t px-3 py-2">
               <span className="text-muted-foreground truncate text-xs" title={vaultLabel}>
@@ -478,8 +492,17 @@ function QuickLink({
   );
 }
 
+const subscribeNothing = () => () => {};
+
 function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { theme: storedTheme, setTheme } = useTheme();
+  // O tema escolhido só é conhecido no navegador: no servidor (e na hidratação) o botão é neutro.
+  const hydrated = useSyncExternalStore(
+    subscribeNothing,
+    () => true,
+    () => false,
+  );
+  const theme = hydrated ? storedTheme : undefined;
   const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
   const label =
     { light: 'Tema: claro', dark: 'Tema: escuro', system: 'Tema: do sistema' }[theme ?? 'system'] ??

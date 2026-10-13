@@ -5,47 +5,55 @@
 
 /* Tokens de cor (padrão shadcn/ui). Contraste verificado para texto normal (≥ 4.5:1). */
 :root {
-  --background: oklch(0.99 0.002 90);
-  --foreground: oklch(0.22 0.01 260);
+  /* Claro, com o roxo do Obsidian como destaque. */
+  --background: oklch(0.99 0.002 290);
+  --foreground: oklch(0.24 0.01 290);
   --card: oklch(1 0 0);
-  --muted: oklch(0.96 0.004 90);
-  --muted-foreground: oklch(0.46 0.012 260);
-  --border: oklch(0.9 0.006 90);
-  --input: oklch(0.88 0.006 90);
-  --ring: oklch(0.55 0.12 255);
-  --primary: oklch(0.45 0.13 255);
-  --primary-foreground: oklch(0.98 0.005 255);
-  --accent: oklch(0.94 0.02 255);
-  --accent-foreground: oklch(0.3 0.08 255);
+  --muted: oklch(0.96 0.005 290);
+  --muted-foreground: oklch(0.47 0.015 290);
+  --border: oklch(0.9 0.008 290);
+  --input: oklch(0.88 0.008 290);
+  --ring: oklch(0.55 0.18 290);
+  --primary: oklch(0.5 0.2 290);
+  --primary-foreground: oklch(0.98 0.01 290);
+  --accent: oklch(0.94 0.03 290);
+  --accent-foreground: oklch(0.32 0.12 290);
   --destructive: oklch(0.52 0.19 25);
   --destructive-foreground: oklch(0.98 0.01 25);
   --warning: oklch(0.5 0.12 70);
   --warning-surface: oklch(0.96 0.05 85);
   --success: oklch(0.48 0.11 150);
-  --sidebar: oklch(0.975 0.003 90);
+  --sidebar: oklch(0.97 0.004 290);
   --link-broken: oklch(0.52 0.15 30);
+  --graph-bg: oklch(0.985 0.003 290);
+  --graph-node: oklch(0.6 0.01 290);
+  --graph-line: oklch(0.82 0.01 290);
 }
 
 .dark {
-  --background: oklch(0.18 0.006 260);
-  --foreground: oklch(0.93 0.006 90);
-  --card: oklch(0.21 0.006 260);
-  --muted: oklch(0.24 0.008 260);
-  --muted-foreground: oklch(0.7 0.01 260);
-  --border: oklch(0.3 0.01 260);
-  --input: oklch(0.34 0.01 260);
-  --ring: oklch(0.7 0.12 255);
-  --primary: oklch(0.72 0.12 255);
-  --primary-foreground: oklch(0.18 0.03 255);
-  --accent: oklch(0.28 0.04 255);
-  --accent-foreground: oklch(0.88 0.05 255);
+  /* Escuro no estilo do Obsidian: grafite neutro e roxo como destaque. */
+  --background: oklch(0.235 0 0);
+  --foreground: oklch(0.88 0.005 290);
+  --card: oklch(0.26 0 0);
+  --muted: oklch(0.29 0 0);
+  --muted-foreground: oklch(0.68 0.01 290);
+  --border: oklch(0.32 0 0);
+  --input: oklch(0.34 0 0);
+  --ring: oklch(0.68 0.17 290);
+  --primary: oklch(0.7 0.16 290);
+  --primary-foreground: oklch(0.18 0.04 290);
+  --accent: oklch(0.33 0.06 290);
+  --accent-foreground: oklch(0.9 0.05 290);
   --destructive: oklch(0.68 0.17 25);
   --destructive-foreground: oklch(0.18 0.03 25);
   --warning: oklch(0.8 0.12 80);
-  --warning-surface: oklch(0.28 0.05 80);
+  --warning-surface: oklch(0.3 0.05 80);
   --success: oklch(0.75 0.12 150);
-  --sidebar: oklch(0.16 0.006 260);
+  --sidebar: oklch(0.205 0 0);
   --link-broken: oklch(0.75 0.14 35);
+  --graph-bg: oklch(0.2 0 0);
+  --graph-node: oklch(0.72 0 0);
+  --graph-line: oklch(0.42 0 0);
 }
 
 @theme inline {
@@ -67,6 +75,7 @@
   --color-warning-surface: var(--warning-surface);
   --color-success: var(--success);
   --color-sidebar: var(--sidebar);
+  --color-graph: var(--graph-bg);
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono:

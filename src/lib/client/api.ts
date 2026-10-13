@@ -250,3 +250,13 @@ export function changePassword(input: { currentPassword: string; newPassword: st
     body: JSON.stringify(input),
   });
 }
+
+export interface GraphDto {
+  available: boolean;
+  nodes: { path: string; title: string; tags: string[] }[];
+  edges: { source: string; target: string }[];
+}
+
+export function noteGraph(signal?: AbortSignal) {
+  return request<GraphDto>('/api/graph', { signal });
+}

@@ -170,6 +170,10 @@ test('rascunho local sobrevive a perder a aba sem sincronizar e pode ser restaur
   await typeAtEnd(page, '\nTexto que ainda não chegou ao vault.');
   await page.keyboard.press('ControlOrMeta+s');
   await expect(saveStatus(page)).toHaveAttribute('data-status', 'error');
+  // O rascunho é gravado no navegador ~300 ms depois da última tecla: espera ele existir.
+  await expect
+    .poll(() => page.evaluate((key) => localStorage.getItem(key) !== null, `sb:draft:${path}`))
+    .toBe(true);
 
   const other = await context.newPage();
   await other.goto(noteUrl(path));
