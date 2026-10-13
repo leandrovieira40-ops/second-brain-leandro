@@ -326,9 +326,9 @@ export class GitHubVaultStore implements VaultStore {
           cache: 'no-store',
           signal: AbortSignal.timeout(this.timeoutMs),
         });
-      } catch {
+      } catch (error) {
         lastError = new VaultUnavailableError(
-          'Não foi possível falar com o GitHub (rede ou tempo esgotado).',
+          `Não foi possível falar com o GitHub (rede ou tempo esgotado; detalhe: ${failureCode(error)}).`,
         );
         continue;
       }
@@ -385,4 +385,16 @@ function toBase64(content: string): string {
 
 function sleep(ms: number): Promise<void> {
   return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
+}
+
+/** Código curto e seguro da falha de rede (ex.: `UND_ERR_CONNECT_TIMEOUT`), sem mensagem nem URL. */
+function failureCode(error: unknown): string {
+  const cause = (error as { cause?: { code?: unknown } } | null)?.cause;
+  const raw =
+    typeof cause?.code === 'string'
+      ? cause.code
+      : error instanceof Error
+        ? error.name
+        : 'desconhecido';
+  return raw.replace(/[^A-Za-z0-9_]/g, '').slice(0, 40) || 'desconhecido';
 }

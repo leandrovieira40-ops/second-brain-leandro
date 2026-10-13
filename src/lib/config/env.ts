@@ -42,10 +42,16 @@ const authSchema = z.object({
 const vaultSchema = z.discriminatedUnion('VAULT_STORE', [
   z.object({
     VAULT_STORE: z.literal('github'),
-    GITHUB_VAULT_OWNER: z.string().min(1),
-    GITHUB_VAULT_REPO: z.string().min(1),
-    GITHUB_VAULT_BRANCH: optional(z.string().min(1)).transform((v) => v ?? 'main'),
-    GITHUB_VAULT_TOKEN: z.string().min(20),
+    // `.trim()`: valores colados em painéis (Vercel) às vezes trazem espaço ou quebra de linha, e um
+    // cabeçalho HTTP com esses caracteres faz o fetch falhar antes de chegar ao GitHub.
+    GITHUB_VAULT_OWNER: z.string().trim().min(1),
+    GITHUB_VAULT_REPO: z.string().trim().min(1),
+    GITHUB_VAULT_BRANCH: optional(z.string().trim().min(1)).transform((v) => v ?? 'main'),
+    GITHUB_VAULT_TOKEN: z
+      .string()
+      .trim()
+      .min(20)
+      .regex(/^[A-Za-z0-9_]+$/, 'o token do GitHub deve ter só letras, números e "_"'),
   }),
   z.object({
     VAULT_STORE: z.literal('fs'),
