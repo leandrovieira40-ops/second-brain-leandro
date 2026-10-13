@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { constants, promises as fs } from 'node:fs';
 import nodePath from 'node:path';
+import { assertPrecondition, normalizeBatch } from './batch';
 import { decodeText, encodeText, gitBlobSha } from './blob';
 import {
   AlreadyExistsError,
@@ -8,10 +9,14 @@ import {
   NotFoundError,
   TooLargeError,
   UnsupportedContentError,
+  UnsupportedOperationError,
   VaultConfigError,
 } from './errors';
 import { normalizeVaultPath } from './paths';
 import type {
+  BatchChange,
+  BatchResult,
+  CommitInfo,
   UpdateOptions,
   VaultEntry,
   VaultFile,
@@ -21,6 +26,8 @@ import type {
 } from './types';
 
 const MAX_READ_BYTES = 5 * 1024 * 1024;
+const NO_HISTORY =
+  'Histórico disponível com o vault no GitHub. Na pasta local, use `git log` no clone do vault.';
 
 /**
  * Adaptador para uma pasta local (desenvolvimento, testes E2E, uso local junto do Obsidian).
@@ -29,6 +36,7 @@ const MAX_READ_BYTES = 5 * 1024 * 1024;
 export class FsVaultStore implements VaultStore {
   readonly kind = 'fs' as const;
   readonly description: string;
+  readonly supportsHistory = false;
   private readonly root: string;
   private realRoot: string | null = null;
   private readonly locks = new Map<string, Promise<unknown>>();
@@ -112,10 +120,7 @@ export class FsVaultStore implements VaultStore {
 
       // Escrita atômica: arquivo temporário na mesma pasta + rename.
       const bytes = encodeText(content);
-      const temp = nodePath.join(
-        nodePath.dirname(absolute),
-        `.${nodePath.basename(absolute)}.${randomBytes(6).toString('hex')}.tmp`,
-      );
+      const temp = tempPath(absolute);
       try {
         await fs.writeFile(temp, bytes, { flag: 'wx' });
         await fs.rename(temp, absolute);
@@ -125,6 +130,51 @@ export class FsVaultStore implements VaultStore {
       }
       return { path: relative, sha: gitBlobSha(bytes), commitSha: null };
     });
+  }
+
+  async commit(changes: readonly BatchChange[], _options: WriteOptions): Promise<BatchResult> {
+    const batch = normalizeBatch(changes);
+    const targets = await Promise.all(
+      batch.map(async (change) => ({
+        change,
+        absolute: (await this.resolve(change.path)).absolute,
+      })),
+    );
+    const keys = targets.map((target) => target.absolute).sort();
+    return this.withLocks(keys, async () => {
+      // 1) Todas as pré-condições antes de qualquer escrita.
+      for (const { change, absolute } of targets) {
+        const current = await this.readBytes(absolute);
+        assertPrecondition(change, current ? gitBlobSha(current) : null);
+      }
+      // 2) Prepara arquivos temporários; 3) troca de uma vez; 4) remove os apagados.
+      const staged: { temp: string; absolute: string }[] = [];
+      try {
+        for (const { change, absolute } of targets) {
+          if (change.kind !== 'put') continue;
+          await fs.mkdir(nodePath.dirname(absolute), { recursive: true });
+          await this.assertInsideRoot(nodePath.dirname(absolute));
+          const temp = tempPath(absolute);
+          await fs.writeFile(temp, encodeText(change.content), { flag: 'wx' });
+          staged.push({ temp, absolute });
+        }
+      } catch (error) {
+        await Promise.all(staged.map(({ temp }) => fs.rm(temp, { force: true })));
+        throw error;
+      }
+      for (const { temp, absolute } of staged) await fs.rename(temp, absolute);
+      for (const { change, absolute } of targets)
+        if (change.kind === 'delete') await fs.rm(absolute);
+      return { commitSha: null };
+    });
+  }
+
+  async history(_path: string): Promise<CommitInfo[]> {
+    throw new UnsupportedOperationError(NO_HISTORY);
+  }
+
+  async readAt(_path: string, _commitSha: string): Promise<VaultFile> {
+    throw new UnsupportedOperationError(NO_HISTORY);
   }
 
   private async getRealRoot(): Promise<string> {
@@ -183,6 +233,14 @@ export class FsVaultStore implements VaultStore {
     }
   }
 
+  /** Trava vários arquivos (em ordem fixa, para não haver impasse). */
+  private withLocks<T>(keys: string[], task: () => Promise<T>): Promise<T> {
+    return keys.reduceRight<() => Promise<T>>(
+      (next, key) => () => this.withLock(key, next),
+      task,
+    )();
+  }
+
   /** Serializa operações no mesmo arquivo dentro deste processo. */
   private async withLock<T>(key: string, task: () => Promise<T>): Promise<T> {
     const previous = this.locks.get(key) ?? Promise.resolve();
@@ -195,6 +253,13 @@ export class FsVaultStore implements VaultStore {
       if (this.locks.get(key) === settled) this.locks.delete(key);
     }
   }
+}
+
+function tempPath(absolute: string): string {
+  return nodePath.join(
+    nodePath.dirname(absolute),
+    `.${nodePath.basename(absolute)}.${randomBytes(6).toString('hex')}.tmp`,
+  );
 }
 
 function isInside(root: string, target: string): boolean {

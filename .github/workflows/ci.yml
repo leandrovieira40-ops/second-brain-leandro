@@ -2,8 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
-  pull_request:
+    branches: ['**']
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,12 +17,27 @@ jobs:
     name: Lint, tipos, testes, build e E2E
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    services:
+      # Banco DESCARTÁVEL para os testes de integração e E2E do índice (Fase 2B).
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: second_brain_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s
+          --health-retries 12
     env:
       NEXT_TELEMETRY_DISABLED: '1'
       # Segredos FICTÍCIOS: o build roda com eles para provar que não vazam para o navegador.
       AUTH_SECRET: ci-segredo-ficticio-que-nao-pode-aparecer-no-bundle-0123456789
       AUTH_PASSWORD_HASH: scrypt:16384:8:1:Y2ktc2FsLWZpY3RpY2lv:Y2ktaGFzaC1maWN0aWNpby1wYXJhLXRlc3Rl
       GITHUB_VAULT_TOKEN: github_pat_FICTICIO_SO_PARA_VERIFICAR_O_BUNDLE_0123456789
+      GITHUB_WEBHOOK_SECRET: ci-webhook-ficticio-que-nao-pode-aparecer-0123456789
+      DATABASE_URL: postgres://ci-ficticio:senha-ficticia-do-bundle-0123456789@db.invalid/sb
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/second_brain_test
+      E2E_DATABASE_URL: postgres://postgres:postgres@localhost:5432/second_brain_test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -41,7 +56,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Navegador para os testes E2E
         run: npx playwright install --with-deps chromium
-      - name: Testes ponta a ponta (build de produção + vault sintético)
+      - name: Testes ponta a ponta (build de produção + vault sintético + índice)
         run: npm run e2e
       - if: failure()
         uses: actions/upload-artifact@v4

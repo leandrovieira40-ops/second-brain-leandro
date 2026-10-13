@@ -121,7 +121,7 @@ describe('GitHubVaultStore — comportamento HTTP', () => {
     github.failures.push(409);
     const result = await store.update('y.md', 'v2', { message: 'm', expectedSha: sha });
     expect(github.files.get('y.md')?.toString()).toBe('v2');
-    expect(result.commitSha).toMatch(/^commit-/);
+    expect(result.commitSha).toMatch(/^[0-9a-f]{40}$/);
   });
 
   it('árvore truncada é erro explícito', async () => {
@@ -136,5 +136,38 @@ describe('GitHubVaultStore — comportamento HTTP', () => {
     });
     void store;
     await expect(truncated.list()).rejects.toBeInstanceOf(TooLargeError);
+  });
+
+  it('commit em lote reavalia as pré-condições se o branch andar no meio do caminho', async () => {
+    const { github, store } = setup();
+    const { sha } = await store.create('a.md', 'v1', { message: 'm' });
+    await store.create('outro.md', 'x', { message: 'm' });
+
+    // Um push em OUTRO arquivo durante o lote: o lote é refeito sobre o novo head e passa.
+    github.beforeNextRefUpdate = () => github.writeExternal('outro.md', 'mudou');
+    await store.commit([{ kind: 'put', path: 'a.md', content: 'v2', expectedSha: sha }], {
+      message: 'm',
+    });
+    expect(github.files.get('a.md')?.toString()).toBe('v2');
+    expect(github.files.get('outro.md')?.toString()).toBe('mudou');
+
+    // Um push NO MESMO arquivo durante o lote: vira conflito, a versão externa é preservada.
+    const current = (await store.read('a.md')).sha;
+    github.beforeNextRefUpdate = () => github.writeExternal('a.md', 'editado no Obsidian');
+    await expect(
+      store.commit([{ kind: 'put', path: 'a.md', content: 'v3', expectedSha: current }], {
+        message: 'm',
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(github.files.get('a.md')?.toString()).toBe('editado no Obsidian');
+  });
+
+  it('commit em lote exige um vault com ao menos um commit', async () => {
+    const { store } = setup();
+    await expect(
+      store.commit([{ kind: 'put', path: 'a.md', content: 'x', expectedSha: null }], {
+        message: 'm',
+      }),
+    ).rejects.toBeInstanceOf(VaultConfigError);
   });
 });

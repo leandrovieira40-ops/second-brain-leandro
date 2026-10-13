@@ -30,6 +30,7 @@ const STATUS_BY_CODE: Record<VaultError['code'], number> = {
   unavailable: 503,
   misconfigured: 500,
   unsupported_content: 415,
+  unsupported_operation: 501,
   too_large: 413,
 };
 

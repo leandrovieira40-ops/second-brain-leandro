@@ -18,10 +18,13 @@ export function MarkdownPreview({
   content,
   path,
   resolver,
+  onCreateNote,
 }: {
   content: string;
   path: string;
   resolver: LinkResolver;
+  /** Chamado ao clicar num link quebrado: abre "nova nota" com esse título. */
+  onCreateNote: (title: string) => void;
 }) {
   const body = useMemo(() => parseFrontmatter(content).body, [content]);
 
@@ -66,6 +69,20 @@ export function MarkdownPreview({
           </a>
         );
       },
+      // Só o plugin de wikilinks gera <button> (o HTML do usuário é ignorado).
+      button({ children, className, title, ...props }) {
+        const target = (props as Record<string, unknown>)['data-wikilink-target'];
+        return (
+          <button
+            type="button"
+            className={className}
+            title={title}
+            onClick={() => typeof target === 'string' && onCreateNote(target)}
+          >
+            {children}
+          </button>
+        );
+      },
       img({ src, alt }) {
         const source = typeof src === 'string' ? src : '';
         return (
@@ -81,7 +98,7 @@ export function MarkdownPreview({
         );
       },
     }),
-    [path, resolver],
+    [path, resolver, onCreateNote],
   );
 
   return (

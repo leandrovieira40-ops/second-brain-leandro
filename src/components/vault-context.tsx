@@ -7,6 +7,8 @@ export interface VaultInfo {
   tree: VaultTree;
   storeKind: 'github' | 'fs' | 'memory';
   timeZone: string;
+  /** Índice derivado configurado (busca no conteúdo, backlinks, tags). */
+  searchAvailable: boolean;
   /** Mensagem segura quando o vault não pôde ser lido (configuração, rede, permissões). */
   error: string | null;
 }
@@ -21,10 +23,33 @@ export function useVault(): VaultInfo {
   return value;
 }
 
-const ShellContext = createContext<{ openNewNote: () => void }>({ openNewNote: () => {} });
+export interface ShellActions {
+  /** Abre o diálogo de nova nota (opcionalmente com título, ex.: a partir de um link quebrado). */
+  openNewNote: (initial?: { title?: string }) => void;
+  openCapture: () => void;
+  favorites: string[];
+  toggleFavorite: (path: string) => Promise<void>;
+  recents: string[];
+  recordRecent: (path: string) => void;
+  openSearch: () => void;
+  /** Aviso no topo da área principal (sobrevive à navegação). */
+  notify: (text: string, href?: string) => void;
+  /** A nota mudou de caminho: favoritos e recentes acompanham. */
+  notePathChanged: (from: string, to: string) => void;
+}
+
+const ShellContext = createContext<ShellActions>({
+  openNewNote: () => {},
+  openCapture: () => {},
+  favorites: [],
+  toggleFavorite: async () => {},
+  recents: [],
+  recordRecent: () => {},
+  openSearch: () => {},
+  notify: () => {},
+  notePathChanged: () => {},
+});
 export const ShellProvider = ShellContext.Provider;
 export const useShell = () => useContext(ShellContext);
 
-export function noteHref(path: string): string {
-  return `/note?path=${encodeURIComponent(path)}`;
-}
+export { noteHref } from '@/lib/notes/href';

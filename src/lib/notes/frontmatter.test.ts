@@ -88,6 +88,17 @@ describe('scalarFieldChange', () => {
       '---\nupdated: 2026-10-12\n---\n',
     );
   });
+
+  it('com encoding yaml, grava um escalar válido mesmo com caracteres especiais', () => {
+    const content = '---\ntitle: Antigo # comentário\ntype: note\n---\nCorpo\n';
+    const next = applyChange(content, scalarFieldChange(content, 'title', 'Ideia: foco', 'yaml'));
+    expect(next).toBe('---\ntitle: "Ideia: foco" # comentário\ntype: note\n---\nCorpo\n');
+    expect(parseFrontmatter(next).data?.title).toBe('Ideia: foco');
+    const quoted = "---\ntitle: 'Antigo'\n---\n";
+    expect(applyChange(quoted, scalarFieldChange(quoted, 'title', 'Novo', 'yaml'))).toBe(
+      '---\ntitle: Novo\n---\n',
+    );
+  });
 });
 
 describe('toStringList', () => {

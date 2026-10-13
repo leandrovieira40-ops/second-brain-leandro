@@ -4,8 +4,9 @@ Sistema pessoal de conhecimento inspirado no Obsidian: notas em **Markdown no Gi
 canônica, links bidirecionais, busca e — nas próximas fases — IA que responde com **fontes
 verificáveis**. O nome exibido é configurável (`APP_NAME`, padrão "Second Brain Leandro").
 
-> **Status:** Fase 0 (arquitetura) ✅ · Fase 1 (fundação funcional) ✅ implementada e testada —
-> falta a verificação no ambiente publicado. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status:** Fase 0 ✅ · Fase 1 ✅ · Fase 2A ✅ · Fase 2B ✅ (índice, busca, backlinks, tags, renomear) —
+> faltam exportação/importação e o limite de login no banco.
+> Falta a verificação no ambiente publicado. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## O que já funciona (Fase 1)
 
@@ -16,6 +17,15 @@ verificáveis**. O nome exibido é configurável (`APP_NAME`, padrão "Second Br
 - Salvamento confiável: autosave limitado, `Ctrl+S`, rascunho local, status honesto ("Salvo" só após
   confirmação), detecção de conflito com edições externas (Obsidian) e cópia de conflito.
 - Vault no GitHub (API REST, sem clonar) ou numa pasta local (desenvolvimento/uso com o Obsidian).
+
+**Fase 2A:** captura rápida (Alt+C), autocompletar de `[[links]]`, criar nota a partir de link
+quebrado, lixeira com restauração (`.trash/`), histórico de versões com restauração, favoritos (no
+próprio vault) e notas recentes.
+
+**Fase 2B (índice opcional em PostgreSQL/Neon):** busca global `Ctrl+K` no conteúdo (português, sem
+acentos, com trechos destacados; sem índice, busca pelos nomes), links de entrada no painel da nota,
+página de tags, renomear/mover com atualização dos `[[links]]` no mesmo commit, links quebrados e
+notas sem conexões no Início, sincronização por webhook do GitHub.
 
 ## Começar
 
@@ -33,6 +43,7 @@ Passo a passo completo (local, Vercel, verificação pós-deploy, rollback): [do
 | `npm run check`         | Formatação, lint, tipos, testes unitários/contrato e build de produção |
 | `npm run e2e`           | Testes ponta a ponta contra o build, com vault sintético               |
 | `npm run hash-password` | Gera o hash da frase-senha                                             |
+| `npm run db:migrate`    | Aplica as migrações do índice em `DATABASE_URL` (comando explícito)    |
 
 ## Princípios
 

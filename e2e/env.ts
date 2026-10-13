@@ -12,6 +12,8 @@ const key = scryptSync(PASSWORD.normalize('NFC'), salt, 32, {
   maxmem: 128 * N * 8 * 2,
 });
 const port = Number(process.env.E2E_PORT ?? 3100);
+/** Banco DESCARTÁVEL para o índice (opcional). Sem ele, os testes cobrem o modo sem índice. */
+const databaseUrl = process.env.E2E_DATABASE_URL || null;
 
 export const E2E = {
   port,
@@ -19,6 +21,7 @@ export const E2E = {
   password: PASSWORD,
   vaultRoot: path.resolve(__dirname, '..', '.e2e-vault'),
   authSecret: 'segredo-ficticio-de-sessao-para-testes-e2e-0123456789',
+  databaseUrl,
   get serverEnv(): Record<string, string> {
     return {
       NODE_ENV: 'production',
@@ -29,6 +32,8 @@ export const E2E = {
       VAULT_STORE: 'fs',
       VAULT_FS_ROOT: this.vaultRoot,
       NEXT_TELEMETRY_DISABLED: '1',
+      // Vazio = sem índice, mesmo que o shell tenha um DATABASE_URL (nunca o banco de verdade).
+      DATABASE_URL: databaseUrl ?? '',
     };
   },
 };

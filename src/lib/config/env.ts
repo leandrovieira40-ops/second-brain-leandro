@@ -108,3 +108,18 @@ export function readVaultConfig(env: Env = process.env): VaultConfig {
     token: data.GITHUB_VAULT_TOKEN,
   };
 }
+
+const databaseSchema = z.object({
+  DATABASE_URL: optional(z.string().regex(/^postgres(ql)?:\/\//)),
+  GITHUB_WEBHOOK_SECRET: optional(z.string().min(20)),
+});
+
+/** URL do PostgreSQL do índice derivado (opcional — sem ela, busca e backlinks ficam indisponíveis). */
+export function readDatabaseUrl(env: Env = process.env): string | null {
+  return parse(databaseSchema, env).DATABASE_URL ?? null;
+}
+
+/** Segredo do webhook do GitHub (opcional — sem ele, o endpoint de webhook responde 404). */
+export function readWebhookSecret(env: Env = process.env): string | null {
+  return parse(databaseSchema, env).GITHUB_WEBHOOK_SECRET ?? null;
+}

@@ -14,7 +14,21 @@ function formatValue(value: unknown): string {
 }
 
 /** Painel direito: propriedades, tags e links de saída calculados do texto atual. */
-export function NoteDetails({ note, resolver }: { note: ParsedNote; resolver: LinkResolver }) {
+export function NoteDetails({
+  note,
+  resolver,
+  onCreateNote,
+  backlinks,
+  history,
+}: {
+  note: ParsedNote;
+  resolver: LinkResolver;
+  onCreateNote: (title: string) => void;
+  /** Links de entrada (vêm do índice). */
+  backlinks: React.ReactNode;
+  /** Seção de histórico (vem da área da nota, que sabe restaurar versões). */
+  history: React.ReactNode;
+}) {
   const links = note.links.map((link) => ({
     link,
     resolution: resolver.resolve(link.target, note.path),
@@ -105,11 +119,22 @@ export function NoteDetails({ note, resolver }: { note: ParsedNote; resolver: Li
                     ) : null}
                   </span>
                 ) : (
-                  <span
-                    className="wikilink-broken break-words"
-                    title="Nenhum arquivo com esse nome. Aliases de outras notas ainda não são considerados."
-                  >
-                    {link.target || link.raw} <span className="text-xs">(não encontrada)</span>
+                  <span className="min-w-0">
+                    <span
+                      className="wikilink-broken break-words"
+                      title="Nenhum arquivo com esse nome. Aliases de outras notas ainda não são considerados."
+                    >
+                      {link.target || link.raw}
+                    </span>{' '}
+                    {link.target ? (
+                      <button
+                        type="button"
+                        className="text-primary text-xs underline underline-offset-2"
+                        onClick={() => onCreateNote(link.target)}
+                      >
+                        criar nota
+                      </button>
+                    ) : null}
                   </span>
                 )}
               </li>
@@ -119,6 +144,10 @@ export function NoteDetails({ note, resolver }: { note: ParsedNote; resolver: Li
           <p className="text-muted-foreground text-xs">Nenhum [[link]] nesta nota.</p>
         )}
       </section>
+
+      {backlinks}
+
+      {history}
     </div>
   );
 }

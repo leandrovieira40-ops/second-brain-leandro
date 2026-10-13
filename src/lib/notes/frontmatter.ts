@@ -1,4 +1,4 @@
-import { isMap, parseDocument } from 'yaml';
+import { isMap, parseDocument, stringify } from 'yaml';
 
 /** Bloco de frontmatter delimitado por `---` na primeira linha (compatível com Obsidian). */
 export interface FrontmatterBlock {
@@ -70,7 +70,13 @@ export interface TextChange {
  * no frontmatter. Retorna `null` se a chave não existir, não for escalar de uma linha ou já tiver o
  * valor. Nunca reformata o restante do YAML (ADR-0012).
  */
-export function scalarFieldChange(content: string, key: string, value: string): TextChange | null {
+export function scalarFieldChange(
+  content: string,
+  key: string,
+  value: string,
+  /** `yaml`: grava o valor como escalar YAML válido (com aspas se precisar), em vez de manter as aspas. */
+  encoding: 'keep-quotes' | 'yaml' = 'keep-quotes',
+): TextChange | null {
   const block = findFrontmatter(content);
   if (!block) return null;
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -91,10 +97,12 @@ export function scalarFieldChange(content: string, key: string, value: string): 
   const valueOffset = block.yamlStart + match.index + match[0].length - raw.length;
   // `updated:` sem espaço após os dois-pontos precisa de um, senão o YAML muda de sentido.
   const separator = match[0].length === key.length + 1 ? ' ' : '';
+  const encoded =
+    encoding === 'yaml' ? stringify(value, { lineWidth: 0 }).trimEnd() : `${quote}${value}${quote}`;
   return {
     from: valueOffset,
     to: valueOffset + valuePart.length,
-    insert: `${separator}${quote}${value}${quote}`,
+    insert: `${separator}${encoded}`,
   };
 }
 
