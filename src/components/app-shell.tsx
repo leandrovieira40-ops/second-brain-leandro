@@ -8,6 +8,7 @@ import {
   MoonIcon,
   PlusIcon,
   SearchIcon,
+  SettingsIcon,
   StarIcon,
   SunIcon,
   TagIcon,
@@ -312,6 +313,15 @@ export function AppShell({
                 {vaultLabel}
               </span>
               <div className="flex items-center">
+                <Link
+                  href="/settings"
+                  onClick={closeMobile}
+                  aria-label="Configurações"
+                  title="Configurações"
+                  className="hover:bg-muted inline-flex size-8 items-center justify-center rounded-md [&_svg]:size-4"
+                >
+                  <SettingsIcon />
+                </Link>
                 <ThemeToggle />
                 <LogoutButton />
               </div>

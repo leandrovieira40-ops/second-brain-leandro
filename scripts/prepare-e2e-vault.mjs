@@ -26,7 +26,9 @@ if (url) {
   const pool = new pg.Pool({ connectionString: url, max: 1 });
   try {
     await migrate(drizzle(pool), { migrationsFolder: `${root}drizzle` });
-    await pool.query('truncate notes, links, attachments, sync_state restart identity cascade');
+    await pool.query(
+      'truncate notes, links, attachments, sync_state, auth_credentials restart identity cascade',
+    );
     console.log(`Índice de teste migrado e vazio (${name}).`);
   } finally {
     await pool.end();

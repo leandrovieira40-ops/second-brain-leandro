@@ -4,7 +4,8 @@ import { redirect } from 'next/navigation';
 import { readAuthConfig } from '@/lib/config/env';
 import { apiError } from '@/lib/http/errors';
 import { isJsonRequest, isSameOriginRequest } from '@/lib/http/origin';
-import { sessionCookieName, verifySessionToken, type Session } from './session';
+import { verifyCurrentSession } from './current';
+import { sessionCookieName, type Session } from './session';
 
 /**
  * Verificação de sessão em cada página, layout e Route Handler — além do `proxy.ts`
@@ -13,7 +14,7 @@ import { sessionCookieName, verifySessionToken, type Session } from './session';
 export async function getSession(): Promise<Session | null> {
   const config = readAuthConfig();
   const store = await cookies();
-  return verifySessionToken(store.get(sessionCookieName(config.secureCookie))?.value, config);
+  return verifyCurrentSession(store.get(sessionCookieName(config.secureCookie))?.value, config);
 }
 
 export async function requireSession(): Promise<Session> {

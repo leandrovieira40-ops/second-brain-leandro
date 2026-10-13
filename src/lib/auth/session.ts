@@ -20,9 +20,14 @@ const key = (secret: string) => new TextEncoder().encode(secret);
 export async function createSessionToken(
   settings: SessionSettings,
   now = Date.now(),
+  /** Impressão digital da senha vigente: trocar a senha invalida as sessões anteriores. */
+  passwordFingerprint?: string,
 ): Promise<string> {
   const issuedAt = Math.floor(now / 1000);
-  return new SignJWT({ ver: settings.sessionVersion })
+  return new SignJWT({
+    ver: settings.sessionVersion,
+    ...(passwordFingerprint ? { pv: passwordFingerprint } : {}),
+  })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setSubject('owner')
     .setIssuer(ISSUER)
@@ -37,6 +42,8 @@ export async function verifySessionToken(
   token: string | undefined,
   settings: SessionSettings,
   now = Date.now(),
+  /** Se informada, a sessão só vale para a senha com esta impressão digital. */
+  expectedPasswordFingerprint?: string,
 ): Promise<Session | null> {
   if (!token) return null;
   try {
@@ -48,6 +55,8 @@ export async function verifySessionToken(
       currentDate: new Date(now),
     });
     if (payload.ver !== settings.sessionVersion) return null;
+    if (expectedPasswordFingerprint !== undefined && payload.pv !== expectedPasswordFingerprint)
+      return null;
     if (typeof payload.iat !== 'number' || typeof payload.exp !== 'number') return null;
     return { subject: 'owner', issuedAt: payload.iat, expiresAt: payload.exp };
   } catch {

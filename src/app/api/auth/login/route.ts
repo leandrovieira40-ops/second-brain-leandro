@@ -6,6 +6,8 @@ import {
   loginFailuresByIp,
   loginFailuresGlobal,
 } from '@/lib/auth/login-limits';
+import { passwordFingerprint } from '@/lib/auth/credentials';
+import { getCredentials } from '@/lib/auth/current';
 import { verifyPassword } from '@/lib/auth/password';
 import { createSessionToken, sessionCookieName, sessionCookieOptions } from '@/lib/auth/session';
 import { readAuthConfig } from '@/lib/config/env';
@@ -46,7 +48,8 @@ export async function POST(request: Request) {
 
   try {
     const config = readAuthConfig();
-    if (!(await verifyPassword(parsed.data.password, config.passwordHash))) {
+    const currentHash = await getCredentials().currentHash();
+    if (!(await verifyPassword(parsed.data.password, currentHash))) {
       loginFailuresByIp.record(ip);
       loginFailuresGlobal.record(GLOBAL_KEY);
       await new Promise((resolve) => setTimeout(resolve, FAILURE_DELAY_MS));
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
       return apiError(401, 'invalid_credentials', 'Senha incorreta.');
     }
     loginFailuresByIp.reset(ip);
-    const token = await createSessionToken(config);
+    const token = await createSessionToken(config, Date.now(), passwordFingerprint(currentHash));
     const response = NextResponse.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
     response.cookies.set(
       sessionCookieName(config.secureCookie),

@@ -86,3 +86,13 @@ export const syncState = pgTable('sync_state', {
   indexedAt: timestamp('indexed_at', { withTimezone: true }),
   lastError: text('last_error'),
 });
+
+/**
+ * Senha trocada pela própria aplicação (uma linha, id = 1). Sem linha, vale `AUTH_PASSWORD_HASH`.
+ * Guarda só o hash scrypt — nunca a senha.
+ */
+export const authCredentials = pgTable('auth_credentials', {
+  id: integer('id').primaryKey(),
+  passwordHash: text('password_hash').notNull(),
+  changedAt: timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
+});
