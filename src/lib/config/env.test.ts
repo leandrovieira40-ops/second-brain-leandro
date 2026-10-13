@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { ConfigError, readAppConfig, readAuthConfig, readVaultConfig } from './env';
+import {
+  ConfigError,
+  describeTokenProblem,
+  readAppConfig,
+  readAuthConfig,
+  readVaultConfig,
+} from './env';
 
 const hash = 'scrypt:32768:8:1:c2FsdHNhbHRzYWx0:aGFzaGhhc2hoYXNoaGFzaGhhc2g';
 
@@ -78,6 +84,15 @@ describe('readVaultConfig', () => {
         GITHUB_VAULT_TOKEN: `${token} x`,
       }),
     ).toThrow(ConfigError);
+  });
+
+  it('explica o problema do token sem revelá-lo', () => {
+    const token = `github_pat_${'A1'.repeat(41)}`;
+    expect(describeTokenProblem(token)).toBeNull();
+    const problem = describeTokenProblem(`${token.slice(0, 40)}\u200b${token.slice(40)}`)!;
+    expect(problem).toContain('U+200B');
+    expect(problem).not.toContain(token.slice(11, 20));
+    expect(describeTokenProblem(`GITHUB_VAULT_TOKEN=${token}`)).toContain('"="');
   });
 
   it('aceita pasta local', () => {
