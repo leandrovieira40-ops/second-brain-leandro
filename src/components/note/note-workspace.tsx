@@ -32,6 +32,7 @@ import {
   type NoteDto,
 } from '@/lib/client/api';
 import { loadDraft, removeDraft, saveDraft, type Draft } from '@/lib/editor/drafts';
+import { findFrontmatter } from '@/lib/notes/frontmatter';
 import { parseNote } from '@/lib/notes/parse';
 import { LinkResolver } from '@/lib/notes/resolve';
 import { cn } from '@/lib/utils';
@@ -526,6 +527,7 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
               note={parsed}
               resolver={resolver}
               onCreateNote={createFromLink}
+              rawFrontmatter={findFrontmatter(deferred)?.yaml ?? null}
               backlinks={<NoteBacklinks path={note.path} />}
               history={<NoteHistory path={note.path} onRestore={restoreToVersion} />}
             />
