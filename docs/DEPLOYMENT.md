@@ -93,7 +93,7 @@ O script de E2E se recusa a esvaziar um banco cujo nome não contenha `test` ou 
 
 Mudanças em variáveis de ambiente só valem após um novo deploy.
 
-### 3.1 Índice de busca (Neon) — opcional
+### 3.1 Índice de busca (Neon ou Supabase) — opcional
 
 1. Crie um projeto no [Neon](https://neon.tech) (região próxima da função da Vercel, ex.:
    `aws-us-east-1` para `iad1`). Um banco por ambiente: produção e preview **nunca** compartilham
@@ -113,6 +113,14 @@ Mudanças em variáveis de ambiente só valem após um novo deploy.
    mudou). Cada gravação feita pela aplicação atualiza o índice logo após a resposta.
 
 O banco guarda uma **cópia derivada** do texto das notas (para a busca). Trate-o com o mesmo cuidado
+
+**Alternativa: Supabase** (usado em produção pelo dono — projeto `obsidian-pessoal`, região
+`sa-east-1`). Use _Connect → Transaction pooler_ (porta `6543`) e acrescente
+`?sslmode=require&uselibpqcompat=true` à URL: a conexão é cifrada, mas o certificado do Supabase não
+é de uma autoridade pública, então ele não é verificado (para verificar, baixe o certificado em
+_Database → SSL Configuration_ — melhoria futura). A migração `0003` liga RLS sem políticas nas
+tabelas, o que bloqueia o acesso pela API REST pública do Supabase; a aplicação conecta como dona das
+tabelas e não é afetada.
 do vault ([SECURITY.md](./SECURITY.md)); apagá-lo não perde nada.
 
 ### 3.2 Webhook do vault (mudanças feitas no Obsidian) — opcional
