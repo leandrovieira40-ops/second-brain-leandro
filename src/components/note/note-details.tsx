@@ -3,25 +3,22 @@
 import { HashIcon, LinkIcon, TriangleAlertIcon } from 'lucide-react';
 import Link from 'next/link';
 import type { ParsedNote } from '@/lib/notes/parse';
+import { formatPropertyValue, isTemplateNote } from '@/lib/notes/property-display';
 import type { LinkResolver } from '@/lib/notes/resolve';
 import { noteHref } from '../vault-context';
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined || value === '') return '—';
-  if (Array.isArray(value)) return value.length ? value.map(formatValue).join(', ') : '—';
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
-}
 
 /** Painel direito: propriedades, tags e links de saída calculados do texto atual. */
 export function NoteDetails({
   note,
   resolver,
   onCreateNote,
+  rawFrontmatter,
   backlinks,
   history,
 }: {
   note: ParsedNote;
+  /** Texto YAML do frontmatter (para reconhecer modelos com `{{…}}`). */
+  rawFrontmatter: string | null;
   resolver: LinkResolver;
   onCreateNote: (title: string) => void;
   /** Links de entrada (vêm do índice). */
@@ -37,6 +34,12 @@ export function NoteDetails({
 
   return (
     <div className="space-y-6 p-4 text-sm">
+      {isTemplateNote(note.path, rawFrontmatter) ? (
+        <p className="bg-accent text-accent-foreground rounded p-2 text-xs">
+          Este arquivo é um <strong>modelo</strong>. Os campos entre {'{{ }}'} são preenchidos pelo
+          Obsidian ao criar uma nota a partir dele.
+        </p>
+      ) : null}
       <section aria-labelledby="props-heading" className="space-y-2">
         <h2
           id="props-heading"
@@ -59,7 +62,7 @@ export function NoteDetails({
                 <dt className="text-muted-foreground truncate" title={key}>
                   {key}
                 </dt>
-                <dd className="min-w-0 break-words">{formatValue(value)}</dd>
+                <dd className="min-w-0 break-words">{formatPropertyValue(value)}</dd>
               </div>
             ))}
           </dl>
