@@ -15,6 +15,13 @@ import {
   searchNotes,
 } from '@/lib/index/queries';
 import { gitBlobShaOfText } from '@/lib/vault/blob';
+import {
+  Credentials,
+  passwordFingerprint,
+  WeakPasswordError,
+  WrongPasswordError,
+} from '@/lib/auth/credentials';
+import { hashPassword, verifyPassword } from '@/lib/auth/password';
 import { NotesService, type WrittenChange } from '@/lib/services/notes';
 import { MemoryVaultStore } from '@/lib/vault/memory-store';
 
@@ -236,5 +243,53 @@ describe.skipIf(!url)('índice derivado (PostgreSQL real)', () => {
     expect(await referencingNotes(db, '04-Concepts/Posicionamento.md')).toEqual([]);
     // O índice incremental bate com uma sincronização completa.
     expect(await index.sync()).toMatchObject({ added: 0, updated: 0, removed: 0 });
+  });
+});
+
+describe.skipIf(!url)('senha trocada pelo app (PostgreSQL real)', () => {
+  let db: Database;
+  let pool: { end(): Promise<void> };
+
+  beforeAll(async () => {
+    ({ db, pool } = connect(url!));
+    await migrate(db, {
+      migrationsFolder: fileURLToPath(new URL('../../drizzle', import.meta.url)),
+    });
+  });
+  afterAll(async () => pool.end());
+  beforeEach(async () => {
+    await db.execute(sql`truncate auth_credentials`);
+  });
+
+  it('usa a variável até a primeira troca; depois, só a senha nova vale', async () => {
+    const envHash = await hashPassword('senha original longa');
+    let clock = 0;
+    const credentials = new Credentials(db, envHash, () => clock);
+    expect(await credentials.currentHash()).toBe(envHash);
+
+    await expect(
+      credentials.change('errada errada', 'senha nova bem longa'),
+    ).rejects.toBeInstanceOf(WrongPasswordError);
+    await expect(credentials.change('senha original longa', 'curta')).rejects.toBeInstanceOf(
+      WeakPasswordError,
+    );
+    await expect(
+      credentials.change('senha original longa', 'senha original longa'),
+    ).rejects.toBeInstanceOf(WeakPasswordError);
+
+    const hash = await credentials.change('senha original longa', 'senha nova bem longa');
+    expect(hash).not.toBe(envHash);
+    // Outra instância (sem cache) enxerga a troca.
+    const other = new Credentials(db, envHash, () => clock);
+    expect(await verifyPassword('senha nova bem longa', await other.currentHash())).toBe(true);
+    expect(await verifyPassword('senha original longa', await other.currentHash())).toBe(false);
+    expect(passwordFingerprint(hash)).not.toBe(passwordFingerprint(envHash));
+
+    // A segunda troca exige a senha nova como "atual".
+    clock += 10_000;
+    await expect(
+      credentials.change('senha original longa', 'mais uma senha longa'),
+    ).rejects.toBeInstanceOf(WrongPasswordError);
+    await credentials.change('senha nova bem longa', 'mais uma senha longa');
   });
 });

@@ -243,3 +243,10 @@ export function renameNote(input: {
     body: JSON.stringify(input),
   });
 }
+
+export function changePassword(input: { currentPassword: string; newPassword: string }) {
+  return request<{ ok: true }>('/api/auth/password', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}

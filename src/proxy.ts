@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { sessionCookieName, verifySessionToken } from '@/lib/auth/session';
+import { verifyCurrentSession } from '@/lib/auth/current';
+import { sessionCookieName } from '@/lib/auth/session';
 import { ConfigError, readAuthConfig } from '@/lib/config/env';
 import { contentSecurityPolicy } from '@/lib/http/csp';
 
@@ -28,17 +29,21 @@ export async function proxy(request: NextRequest) {
   try {
     const config = readAuthConfig();
     const token = request.cookies.get(sessionCookieName(config.secureCookie))?.value;
-    authenticated = (await verifySessionToken(token, config)) !== null;
+    authenticated = (await verifyCurrentSession(token, config)) !== null;
   } catch (error) {
-    if (!(error instanceof ConfigError)) throw error;
-    // Só nomes de variáveis (já públicos no .env.example), nunca valores.
-    return withHeaders(
-      new NextResponse(`Aplicação não configurada. ${error.message}. Veja docs/DEPLOYMENT.md.`, {
-        status: 500,
-        headers: { 'content-type': 'text/plain; charset=utf-8' },
-      }),
-      csp,
-    );
+    if (!(error instanceof ConfigError)) {
+      // Banco fora do ar ao conferir a senha vigente: trata como sem sessão (o login explica).
+      authenticated = false;
+    } else {
+      // Só nomes de variáveis (já públicos no .env.example), nunca valores.
+      return withHeaders(
+        new NextResponse(`Aplicação não configurada. ${error.message}. Veja docs/DEPLOYMENT.md.`, {
+          status: 500,
+          headers: { 'content-type': 'text/plain; charset=utf-8' },
+        }),
+        csp,
+      );
+    }
   }
 
   if (!authenticated && !PUBLIC_PATHS.has(pathname)) {

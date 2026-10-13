@@ -59,6 +59,16 @@ describe('sessão (JWT)', () => {
     expect(await verifySessionToken('lixo', settings, now)).toBeNull();
   });
 
+  it('sessão vale só para a senha vigente (trocar a senha desconecta as outras sessões)', async () => {
+    const now = Date.UTC(2026, 9, 12);
+    const token = await createSessionToken(settings, now, 'senha-a');
+    expect(await verifySessionToken(token, settings, now, 'senha-a')).not.toBeNull();
+    expect(await verifySessionToken(token, settings, now, 'senha-b')).toBeNull();
+    // Sessões antigas, sem impressão digital, deixam de valer quando ela é exigida.
+    const legacy = await createSessionToken(settings, now);
+    expect(await verifySessionToken(legacy, settings, now, 'senha-a')).toBeNull();
+  });
+
   it('recusa alg "none"', async () => {
     const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
     const payload = Buffer.from(
