@@ -119,13 +119,9 @@
         "links_source_path_notes_path_fk": {
           "name": "links_source_path_notes_path_fk",
           "tableFrom": "links",
-          "columnsFrom": [
-            "source_path"
-          ],
+          "columnsFrom": ["source_path"],
           "tableTo": "notes",
-          "columnsTo": [
-            "path"
-          ],
+          "columnsTo": ["path"],
           "onUpdate": "cascade",
           "onDelete": "cascade"
         }
