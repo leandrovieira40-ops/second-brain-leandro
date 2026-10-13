@@ -9,8 +9,14 @@ import { isValidTimeZone } from '@/lib/notes/dates';
  */
 export class ConfigError extends Error {
   override readonly name = 'ConfigError';
-  constructor(readonly variables: string[]) {
-    super(`Configuração ausente ou inválida: ${variables.join(', ')}`);
+  constructor(
+    readonly variables: string[],
+    /** Diagnóstico sem o valor (tamanho, tipo de caractere inválido). */
+    detail?: string,
+  ) {
+    super(
+      `Configuração ausente ou inválida: ${variables.join(', ')}${detail ? ` (${detail})` : ''}`,
+    );
   }
 }
 
@@ -104,6 +110,10 @@ export function readAuthConfig(env: Env = process.env): AuthConfig {
 }
 
 export function readVaultConfig(env: Env = process.env): VaultConfig {
+  const tokenProblem = describeTokenProblem(env.GITHUB_VAULT_TOKEN);
+  if (tokenProblem && (env.VAULT_STORE || 'github') === 'github') {
+    throw new ConfigError(['GITHUB_VAULT_TOKEN'], tokenProblem);
+  }
   const data = parse(vaultSchema, { ...env, VAULT_STORE: env.VAULT_STORE || 'github' });
   if (data.VAULT_STORE === 'fs') return { store: 'fs', root: data.VAULT_FS_ROOT };
   return {
@@ -128,4 +138,26 @@ export function readDatabaseUrl(env: Env = process.env): string | null {
 /** Segredo do webhook do GitHub (opcional — sem ele, o endpoint de webhook responde 404). */
 export function readWebhookSecret(env: Env = process.env): string | null {
   return parse(databaseSchema, env).GITHUB_WEBHOOK_SECRET ?? null;
+}
+
+/**
+ * Explica por que o token colado não é válido SEM revelá-lo: tamanho, prefixo esperado e os códigos
+ * Unicode dos caracteres estranhos (ex.: espaço invisível vindo de copiar e colar).
+ */
+export function describeTokenProblem(raw: string | undefined): string | null {
+  if (raw === undefined) return null;
+  const value = raw.trim();
+  if (value === '') return null;
+  const invalid = [...new Set([...value].filter((char) => !/[A-Za-z0-9_]/.test(char)))];
+  const parts: string[] = [];
+  if (value.includes('=')) parts.push('contém "=" — cole só o valor, sem o nome da variável');
+  if (invalid.length) {
+    const codes = invalid
+      .slice(0, 4)
+      .map((char) => `U+${char.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`);
+    parts.push(`caracteres inválidos ${codes.join(' ')}`);
+  }
+  if (parts.length === 0) return null;
+  if (!/^(github_pat_|gh[pousr]_)/.test(value)) parts.push('não começa com github_pat_');
+  return `${parts.join('; ')}; tamanho ${value.length} (um token fine-grained tem 93)`;
 }
