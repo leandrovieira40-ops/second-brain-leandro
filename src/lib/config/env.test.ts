@@ -62,6 +62,24 @@ describe('readVaultConfig', () => {
     ).toEqual({ store: 'github', owner: 'o', repo: 'r', branch: 'main', token: 't'.repeat(40) });
   });
 
+  it('remove espaços e quebras de linha coladas junto com os valores do GitHub', () => {
+    const token = `github_pat_${'A1'.repeat(20)}`;
+    expect(
+      readVaultConfig({
+        GITHUB_VAULT_OWNER: ' o\r\n',
+        GITHUB_VAULT_REPO: 'r ',
+        GITHUB_VAULT_TOKEN: `${token}\r\n`,
+      }),
+    ).toMatchObject({ owner: 'o', repo: 'r', token });
+    expect(() =>
+      readVaultConfig({
+        GITHUB_VAULT_OWNER: 'o',
+        GITHUB_VAULT_REPO: 'r',
+        GITHUB_VAULT_TOKEN: `${token} x`,
+      }),
+    ).toThrow(ConfigError);
+  });
+
   it('aceita pasta local', () => {
     expect(readVaultConfig({ VAULT_STORE: 'fs', VAULT_FS_ROOT: '/tmp/vault' })).toEqual({
       store: 'fs',
