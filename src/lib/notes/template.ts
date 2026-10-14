@@ -7,6 +7,11 @@ export interface NewNoteInput {
   type: NoteType;
   /** Data `AAAA-MM-DD`. */
   today: string;
+  tags?: string[];
+  /** Valores para campos do modelo (ex.: `author` de uma fonte); campos desconhecidos são ignorados. */
+  fields?: Record<string, string>;
+  /** Corpo da nota no lugar das seções vazias do modelo. */
+  body?: string;
 }
 
 const yamlScalar = (value: string) => stringify(value, { lineWidth: 0 }).trimEnd();
@@ -39,7 +44,20 @@ const BODY: Partial<Record<NoteType, string>> = {
 };
 
 /** Conteúdo inicial de uma nota criada pela aplicação (ver DATA_MODEL.md). */
-export function newNoteContent({ id, title, type, today }: NewNoteInput): string {
+export function newNoteContent({
+  id,
+  title,
+  type,
+  today,
+  tags,
+  fields,
+  body,
+}: NewNoteInput): string {
+  const extra = (EXTRA_FIELDS[type]?.(today) ?? []).map((line) => {
+    const key = line.slice(0, line.indexOf(':'));
+    const value = fields?.[key]?.trim();
+    return value && line === `${key}:` ? `${key}: ${yamlScalar(value)}` : line;
+  });
   const lines = [
     '---',
     `id: ${id}`,
@@ -47,12 +65,12 @@ export function newNoteContent({ id, title, type, today }: NewNoteInput): string
     `type: ${type}`,
     `created: ${today}`,
     `updated: ${today}`,
-    'tags: []',
+    tags?.length ? `tags: [${tags.map(yamlScalar).join(', ')}]` : 'tags: []',
     'aliases: []',
-    ...(EXTRA_FIELDS[type]?.(today) ?? []),
+    ...extra,
     `status: ${type === 'permanent' ? 'draft' : 'active'}`,
     '---',
     '',
   ];
-  return `${lines.join('\n')}${BODY[type] ?? ''}`;
+  return `${lines.join('\n')}${body ?? BODY[type] ?? ''}`;
 }

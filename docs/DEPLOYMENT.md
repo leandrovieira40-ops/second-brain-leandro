@@ -141,6 +141,24 @@ tempo constante); sem `GITHUB_WEBHOOK_SECRET` ela responde 404. Se a _Deployment
 ativa para produção, libere o caminho do webhook (ou use o domínio de produção, que não é protegido
 por padrão).
 
+### 3.3 Importar PDF com IA — opcional
+
+"Importar PDF" (botão no Início) lê o PDF com o Claude e cria uma nota em `02-Sources` com resumo,
+ideias centrais e citações.
+
+1. Em <https://console.anthropic.com>, crie uma chave de API (Settings → API Keys) e coloque
+   crédito na conta. Defina um limite de gasto mensal (Settings → Limits).
+2. Na Vercel: **Settings → Environment Variables** → `ANTHROPIC_API_KEY` = a chave (só o valor,
+   ambiente _Production_). Nunca use um nome `NEXT_PUBLIC_*`.
+3. **Deployments → ⋯ → Redeploy** para a variável valer.
+
+Como funciona: o navegador abre o PDF com pdf.js, extrai o texto e, nas páginas com pouco texto
+(slides, digitalizações), gera imagens JPEG; o arquivo original não é enviado nem guardado. O
+servidor envia isso ao Claude (até 40 páginas e ~4 MB por importação, limite da Vercel) e grava a
+nota. O conteúdo do PDF é tratado como não confiável: o modelo recebe a instrução de ignorar
+comandos do documento, não tem ferramentas, e o texto devolvido entra na nota sem HTML e sem
+`[[links]]` automáticos. Custo típico: alguns centavos de dólar por PDF.
+
 ## 4. Verificação pós-deploy (obrigatória)
 
 Um deploy só é considerado bem-sucedido depois deste roteiro no **ambiente publicado**:

@@ -4,6 +4,7 @@ import { ConfigError } from '@/lib/config/env';
 import { ConflictError, VaultError, VaultRateLimitedError } from '@/lib/vault/errors';
 import { InvalidPathError } from '@/lib/vault/paths';
 import { correlationId, log } from '@/lib/log/logger';
+import { PdfReadError } from '@/lib/import/pdf-note';
 
 export interface ApiErrorBody {
   error: { code: string; message: string; correlationId?: string; currentSha?: string | null };
@@ -53,6 +54,10 @@ export function toErrorResponse(error: unknown, operation: string) {
       log('warn', `${operation}.failed`, { code: error.code, errorClass: error.name });
     }
     return apiError(STATUS_BY_CODE[error.code], error.code, error.message);
+  }
+  if (error instanceof PdfReadError) {
+    log('warn', `${operation}.ai_failed`, { status: error.status });
+    return apiError(error.status, 'ai_failed', error.message);
   }
   if (error instanceof ConfigError) {
     log('error', `${operation}.config_error`, { variables: error.variables.join(',') });

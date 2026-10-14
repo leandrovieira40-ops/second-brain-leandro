@@ -29,7 +29,7 @@ import {
   rewriteLinksForRename,
 } from '@/lib/notes/rename';
 import { newNoteContent } from '@/lib/notes/template';
-import { INBOX_FOLDER, type NoteType } from '@/lib/notes/types';
+import { DEFAULT_FOLDER_BY_TYPE, INBOX_FOLDER, type NoteType } from '@/lib/notes/types';
 import { FAVORITES_PATH, parseFavoritesFile, serializeFavoritesFile } from './favorites-file';
 
 /** Tamanho máximo de uma nota editável (ADR-0008). */
@@ -237,6 +237,48 @@ export class NotesService {
       }
     }
     throw new AlreadyExistsError('Muitas capturas com o mesmo título.');
+  }
+
+  /**
+   * Nota de fonte criada a partir de um documento importado (ex.: PDF lido pela IA). O nome segue o
+   * título; se já existir, ganha um número ("Livro 2.md"). Nunca sobrescreve.
+   */
+  async importSource(input: {
+    title: string;
+    body: string;
+    author?: string;
+    tags?: string[];
+    sourceType: string;
+  }): Promise<WriteResult> {
+    const now = this.now();
+    const title = input.title.trim();
+    const content = newNoteContent({
+      id: ulid(now.getTime()),
+      title,
+      type: 'source',
+      today: isoDateInTimeZone(now, this.options.timeZone),
+      tags: input.tags,
+      fields: { author: input.author ?? '', source_type: input.sourceType },
+      body: input.body,
+    });
+    this.assertSize(content);
+    const folder = DEFAULT_FOLDER_BY_TYPE.source;
+    const taken = new Set((await this.store.list()).map((entry) => collisionKey(entry.path)));
+    const name = titleToFileName(title).replace(/\.md$/, '');
+    for (let n = 1; n <= 50; n++) {
+      const path = assertNotePath(`${folder}/${n === 1 ? name : `${name} ${n}`}.md`);
+      if (taken.has(collisionKey(path))) continue;
+      try {
+        const result = await this.store.create(path, content, {
+          message: commitMessage(`Importa fonte: ${path}`),
+        });
+        this.written([{ path, content, sha: result.sha }]);
+        return result;
+      } catch (error) {
+        if (!(error instanceof AlreadyExistsError)) throw error;
+      }
+    }
+    throw new AlreadyExistsError('Muitas notas com o mesmo título.');
   }
 
   /** Move a nota para `.trash/` num único commit (ADR-0007). Exige a versão que o usuário viu. */
