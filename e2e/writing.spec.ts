@@ -80,3 +80,20 @@ test('mudar o título renomeia a nota e atualiza os links', async ({ page }) => 
   expect(await readVault(moved)).toContain(`title: Novo nome ${stamp}\n`);
   expect(await readVault(source)).toBe(`Ver [[Novo nome ${stamp}]].\n`);
 });
+
+test('clicar na pasta abaixo do título move a nota', async ({ page }) => {
+  const stamp = Date.now();
+  const path = `00-Inbox/Mover ${stamp}.md`;
+  await writeVault(path, `---\ntitle: Mover ${stamp}\ntype: inbox\n---\nTexto.\n`);
+  await openNote(page, path);
+
+  await page.getByRole('button', { name: /Pasta: Caixa de entrada/ }).click();
+  await page.getByRole('menuitem', { name: /^Ideias/ }).click();
+
+  const moved = `03-Permanent-Notes/Mover ${stamp}.md`;
+  await expect.poll(() => new URL(page.url()).searchParams.get('path')).toBe(moved);
+  await expect(page.getByText('Nota movida para 💡 Ideias.')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Pasta: Ideias/ })).toBeVisible();
+  expect(existsSync(vaultFile(path))).toBe(false);
+  expect(await readVault(moved)).toBe(`---\ntitle: Mover ${stamp}\ntype: inbox\n---\nTexto.\n`);
+});

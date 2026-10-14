@@ -47,7 +47,7 @@ import { findFrontmatter } from '@/lib/notes/frontmatter';
 import { parseNote } from '@/lib/notes/parse';
 import { LinkResolver } from '@/lib/notes/resolve';
 import { cn } from '@/lib/utils';
-import { dirname } from '@/lib/vault/paths';
+import { dirname, noteName } from '@/lib/vault/paths';
 import { noteHref, useShell, useVault } from '../vault-context';
 import { createEditorSession } from './editor-session';
 import { MarkdownPreview } from './markdown-preview';
@@ -286,9 +286,11 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
     setRenameOpen(true);
   }
 
-  async function renameFromTitle(title: string) {
+  /** Renomeia (novo título) ou move (nova pasta) a nota, salvando o texto antes. */
+  async function relocate(target: { title?: string; folder?: string }) {
     setRenaming(true);
     setNotice(null);
+    const what = target.title !== undefined ? 'O título não mudou' : 'A nota não foi movida';
     try {
       if (!(await waitUntilSaved(controller))) {
         throw new ApiError(0, 'not_saved', 'salve o texto antes (Ctrl+S) e tente de novo.');
@@ -296,8 +298,8 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
       const result = await renameNote({
         path: note.path,
         expectedSha: controller.getState().baseSha,
-        title,
-        folder: dirname(note.path),
+        title: target.title ?? noteName(note.path),
+        folder: target.folder ?? dirname(note.path),
       });
       onRenamed({ path: result.path, updatedNotes: result.updatedNotes });
     } catch (error) {
@@ -305,8 +307,8 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
       setNotice({
         text:
           error instanceof ApiError
-            ? `O título não mudou: ${error.message}`
-            : 'Sem conexão: o título não mudou.',
+            ? `${what}: ${error.message}`
+            : `Sem conexão: ${what.toLowerCase()}.`,
       });
     }
     setRenaming(false);
@@ -316,10 +318,14 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
     removeDraft(note.path);
     notePathChanged(note.path, outcome.path);
     const count = outcome.updatedNotes.length;
+    const linksNote = count ? `; links atualizados em ${count} nota${count > 1 ? 's' : ''}` : '';
+    const onlyMoved =
+      noteName(outcome.path) === noteName(note.path) &&
+      dirname(outcome.path) !== dirname(note.path);
     notify(
-      count
-        ? `Nota renomeada para ${outcome.path}; links atualizados em ${count} nota${count > 1 ? 's' : ''}.`
-        : `Nota renomeada para ${outcome.path}.`,
+      onlyMoved
+        ? `Nota movida para ${folderDisplay(dirname(outcome.path)).icon} ${folderTrail(dirname(outcome.path))}${linksNote}.`
+        : `Nota renomeada para ${outcome.path}${linksNote}.`,
     );
     setRenameOpen(false);
     router.replace(noteHref(outcome.path));
@@ -517,10 +523,16 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
               key={titleVersion}
               title={parsed.title}
               disabled={pendingDraft !== null || renaming || busy}
-              onCommit={renameFromTitle}
+              onCommit={(title) => relocate({ title })}
               onEnter={focusEditor}
             />
-            <NoteMeta note={parsed} />
+            <NoteMeta
+              note={parsed}
+              folder={folder}
+              folders={tree.folders}
+              disabled={pendingDraft !== null || renaming || busy}
+              onMove={(next) => relocate({ folder: next })}
+            />
           </div>
           <div
             className={cn(
