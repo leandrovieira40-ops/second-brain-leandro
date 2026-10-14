@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { parseFrontmatter } from './frontmatter';
-import { formatPropertyValue, isTemplateNote } from './property-display';
+import {
+  formatIsoDate,
+  formatPropertyValue,
+  friendlyPropertyValue,
+  isTemplateNote,
+  propertyLabel,
+} from './property-display';
 
 describe('formatPropertyValue', () => {
   it('mostra placeholders de modelos como foram escritos', () => {
@@ -27,5 +33,23 @@ describe('isTemplateNote', () => {
     expect(isTemplateNote('Templates/x.md', null)).toBe(true);
     expect(isTemplateNote('04-Concepts/x.md', 'title: "{{title}}"')).toBe(true);
     expect(isTemplateNote('04-Concepts/x.md', 'title: Ideia')).toBe(false);
+  });
+});
+
+describe('propriedades em português', () => {
+  it('traduz nomes conhecidos e mantém os demais', () => {
+    expect(propertyLabel('created')).toBe('Criada em');
+    expect(propertyLabel('minha_chave')).toBe('minha_chave');
+  });
+
+  it('formata datas, tipo e situação', () => {
+    expect(formatIsoDate('2026-10-13')).toBe('13/10/2026');
+    expect(formatIsoDate('ontem')).toBeNull();
+    const labels = { inbox: 'Captura' };
+    expect(friendlyPropertyValue('type', 'inbox', labels)).toBe('Captura');
+    expect(friendlyPropertyValue('created', '2026-10-13', labels)).toBe('13/10/2026');
+    expect(friendlyPropertyValue('status', 'active', labels)).toBe('Ativa');
+    expect(friendlyPropertyValue('status', 'outro', labels)).toBe('outro');
+    expect(friendlyPropertyValue('tags', [], labels)).toBe('—');
   });
 });

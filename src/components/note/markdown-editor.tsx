@@ -10,6 +10,7 @@ import { tags as t } from '@lezer/highlight';
 import CodeMirror from '@uiw/react-codemirror';
 import { useMemo } from 'react';
 import type { NoteSuggestion } from '@/lib/notes/suggest';
+import { bodyStart, hiddenFrontmatter, livePreview } from './editor-extensions';
 
 const highlight = HighlightStyle.define([
   { tag: t.heading1, fontSize: '1.5em', fontWeight: '700' },
@@ -59,7 +60,10 @@ function wikilinkCompletions(suggest: (query: string) => NoteSuggestion[]) {
   };
 }
 
-/** Editor do texto exato do arquivo (frontmatter incluído) — nada é reformatado (ADR-0003). */
+/**
+ * Editor do texto exato do arquivo — nada é reformatado (ADR-0003). O frontmatter continua no
+ * texto, mas fica escondido (as propriedades aparecem no painel de detalhes).
+ */
 export default function MarkdownEditor({
   initialValue,
   readOnly,
@@ -74,9 +78,11 @@ export default function MarkdownEditor({
       yamlFrontmatter({ content: markdown({ base: markdownLanguage, codeLanguages: languages }) }),
       EditorView.lineWrapping,
       syntaxHighlighting(highlight),
+      hiddenFrontmatter,
+      livePreview,
       autocompletion({ override: [wikilinkCompletions(suggest)], activateOnTyping: true }),
       EditorView.contentAttributes.of({
-        'aria-label': 'Editor da nota (Markdown)',
+        'aria-label': 'Texto da nota',
         spellcheck: 'true',
         lang: 'pt-BR',
       }),
@@ -87,8 +93,7 @@ export default function MarkdownEditor({
   return (
     <CodeMirror
       value={initialValue}
-      height="100%"
-      className="h-full"
+      className="note-editor"
       theme="none"
       readOnly={readOnly}
       extensions={extensions}
@@ -100,7 +105,12 @@ export default function MarkdownEditor({
         autocompletion: false,
       }}
       onChange={onChange}
-      onCreateEditor={onReady}
+      onCreateEditor={(view) => {
+        // Começa com o cursor no corpo, depois do frontmatter escondido.
+        const start = bodyStart(view.state.doc.toString());
+        if (start > 0) view.dispatch({ selection: { anchor: start } });
+        onReady(view);
+      }}
     />
   );
 }

@@ -5,6 +5,7 @@ import { SaveController } from '@/lib/editor/save-controller';
 import { isoDateInTimeZone } from '@/lib/notes/dates';
 import { applyChange, scalarFieldChange } from '@/lib/notes/frontmatter';
 import { suggestNotes, type NoteSuggestion } from '@/lib/notes/suggest';
+import { bodyStart, programmatic } from './editor-extensions';
 
 /**
  * Liga o `SaveController` ao CodeMirror sem passar refs do React para dentro de callbacks.
@@ -30,7 +31,7 @@ export function createEditorSession(note: NoteDto, timeZone: string) {
       const change = scalarFieldChange(text, 'updated', isoDateInTimeZone(new Date(), timeZone));
       if (!change) return text;
       if (view && view.state.doc.toString() === text) {
-        view.dispatch({ changes: change });
+        view.dispatch({ changes: change, annotations: programmatic.of(true) });
         return view.state.doc.toString();
       }
       return applyChange(text, change);
@@ -53,9 +54,22 @@ export function createEditorSession(note: NoteDto, timeZone: string) {
         notePaths.filter((path) => path !== note.path),
       );
     },
+    /** Foco no começo do texto, ex.: depois de editar o título. */
+    focus() {
+      if (!view) return;
+      view.focus();
+      view.dispatch({
+        selection: { anchor: bodyStart(view.state.doc.toString()) },
+        scrollIntoView: true,
+      });
+    },
     /** Substitui o texto inteiro do editor (recarregar versão remota, restaurar rascunho). */
     replace(text: string) {
-      if (view) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+      if (view)
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: text },
+          annotations: programmatic.of(true),
+        });
     },
   };
 }

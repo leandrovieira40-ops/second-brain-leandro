@@ -117,10 +117,10 @@ export interface CommitDto {
   author: string | null;
 }
 
-export function captureNote(text: string) {
+export function captureNote(text: string, title?: string) {
   return request<{ path: string; sha: string }>('/api/notes', {
     method: 'POST',
-    body: JSON.stringify({ mode: 'capture', text }),
+    body: JSON.stringify({ mode: 'capture', text, title }),
   });
 }
 
@@ -204,6 +204,19 @@ export function noteBacklinks(path: string, signal?: AbortSignal) {
     `/api/notes/backlinks?path=${encodeURIComponent(path)}`,
     { signal },
   );
+}
+
+export interface RecentNoteDto {
+  path: string;
+  title: string;
+  type: string;
+  tags: string[];
+  excerpt: string;
+  date: string | null;
+}
+
+export function recentNotes(signal?: AbortSignal) {
+  return request<{ available: boolean; notes: RecentNoteDto[] }>('/api/notes/recent', { signal });
 }
 
 export function listTags() {

@@ -109,18 +109,30 @@
   @apply cursor-help underline decoration-dotted underline-offset-2;
 }
 
-/* Editor CodeMirror: segue os tokens do tema. */
+/* Editor CodeMirror: segue os tokens do tema; rola junto com o título, como uma página. */
 .cm-editor {
-  @apply h-full text-[15px];
+  @apply text-base;
   background: transparent;
 }
+.cm-editor .cm-scroller {
+  overflow: visible;
+}
 .cm-editor .cm-content {
-  @apply font-sans leading-7;
+  @apply font-sans leading-[1.75];
   caret-color: var(--foreground);
-  padding: 1.5rem 0 40vh;
+  padding: 1rem 0 40vh;
 }
 .cm-editor .cm-line {
   @apply px-6;
+}
+.cm-editor .cm-wikilink {
+  color: var(--primary);
+  @apply underline decoration-current/40 underline-offset-2;
+}
+.cm-body-placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.7;
+  pointer-events: none;
 }
 .cm-editor.cm-focused {
   outline: none;

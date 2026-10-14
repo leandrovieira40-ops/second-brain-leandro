@@ -204,21 +204,25 @@ export class NotesService {
     }
   }
 
-  /** Captura rápida: nova nota no Inbox com o texto exato digitado (sem exigir classificação). */
-  async capture(text: string): Promise<WriteResult> {
-    if (!text.trim()) throw new TooLargeError('A captura está vazia.');
+  /**
+   * Captura rápida: nova nota no Inbox com o texto exato digitado (sem exigir classificação).
+   * O título vem de `title`, se informado; senão, da primeira linha do texto.
+   */
+  async capture(text: string, title?: string): Promise<WriteResult> {
+    if (!text.trim() && !title?.trim()) throw new TooLargeError('A captura está vazia.');
     if (text.length > MAX_CAPTURE_CHARS)
       throw new TooLargeError('Captura longa demais: crie uma nota.');
     const now = this.now();
-    const title = captureTitle(text, this.stamp(now));
+    const noteTitle = captureTitle(title?.trim() ? title : text, this.stamp(now));
+    const body = text.replace(/\s+$/, '');
     const content = `${newNoteContent({
       id: ulid(now.getTime()),
-      title,
+      title: noteTitle,
       type: 'inbox',
       today: isoDateInTimeZone(now, this.options.timeZone),
-    })}${text.replace(/\s+$/, '')}\n`;
+    })}${body ? `${body}\n` : ''}`;
     const taken = new Set((await this.store.list()).map((entry) => collisionKey(entry.path)));
-    const name = titleToFileName(title).replace(/\.md$/, '');
+    const name = titleToFileName(noteTitle).replace(/\.md$/, '');
     for (let n = 1; n <= 50; n++) {
       const path = assertNotePath(`${INBOX_FOLDER}/${n === 1 ? name : `${name} ${n}`}.md`);
       if (taken.has(collisionKey(path))) continue;

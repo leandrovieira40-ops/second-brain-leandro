@@ -157,9 +157,22 @@ describe('NotesService.capture', () => {
     expect((await store.read('00-Inbox/Ideia.md')).content).toBe('original');
   });
 
+  it('usa o título digitado à parte, sem repeti-lo no texto', async () => {
+    const { service, store } = setup({ '00-Inbox/.gitkeep': '' });
+    const result = await service.capture('Nada de grandioso sem paixão.', 'Paixão');
+    expect(result.path).toBe('00-Inbox/Paixão.md');
+    const content = (await store.read(result.path)).content;
+    expect(parseNote(result.path, content).title).toBe('Paixão');
+    expect(content.endsWith('---\nNada de grandioso sem paixão.\n')).toBe(true);
+    // Só o título também vale (nota vazia para escrever depois).
+    const empty = await service.capture('', 'Lembrete');
+    expect((await store.read(empty.path)).content.endsWith('---\n')).toBe(true);
+  });
+
   it('recusa captura vazia', async () => {
     const { service } = setup();
     await expect(service.capture('   ')).rejects.toBeInstanceOf(TooLargeError);
+    await expect(service.capture('', '  ')).rejects.toBeInstanceOf(TooLargeError);
   });
 });
 

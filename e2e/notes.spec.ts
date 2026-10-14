@@ -3,6 +3,8 @@ import { expect, test } from './fixtures';
 import {
   chooseNoteType,
   login,
+  noteDetails,
+  noteMenu,
   noteUrl,
   readVault,
   saveStatus,
@@ -80,19 +82,23 @@ test('frontmatter: "updated" é ajustado no editor e o resto do YAML fica intact
   expect(after).toBe(
     before.replace('updated: 2026-09-20', `updated: ${today()}`) + '\nExemplo: marcas premium.',
   );
-  await expect(page.locator('.cm-content')).toContainText(`updated: ${today()}`);
+  // O frontmatter fica escondido no editor; a data nova aparece abaixo do título.
+  await expect(page.locator('.cm-content')).not.toContainText('updated:');
+  await expect(page.getByTestId('note-meta')).toContainText(
+    `editada em ${today().split('-').reverse().join('/')}`,
+  );
 });
 
 test('wikilinks: visualização resolve links, marca quebrados e navega', async ({ page }) => {
   await page.goto(noteUrl('03-Permanent-Notes/Posicionamento é escolha.md'));
-  await page.getByRole('button', { name: 'Editar e visualizar' }).click();
+  await noteMenu(page, 'Escrever e ver o resultado lado a lado');
   const preview = page.getByRole('region', { name: 'Visualização' });
   await expect(
     preview.locator('.wikilink-broken', { hasText: 'Conceito inexistente' }),
   ).toBeVisible();
   await expect(preview.getByText('[[link dentro de código não conta]]')).toBeVisible();
 
-  const details = page.getByRole('complementary', { name: 'Detalhes da nota' });
+  const details = await noteDetails(page);
   await expect(details.getByText('Links de saída (2) · 1 sem destino')).toBeVisible();
   await expect(details.getByText('vendas/consultivas')).toBeVisible();
 

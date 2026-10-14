@@ -14,7 +14,12 @@ export const createNoteSchema = z.discriminatedUnion('mode', [
     type: z.enum(NOTE_TYPES),
   }),
   z.object({ mode: z.literal('conflict-copy'), sourcePath: path, content }),
-  z.object({ mode: z.literal('capture'), text: z.string().min(1).max(MAX_CAPTURE_CHARS) }),
+  z.object({
+    mode: z.literal('capture'),
+    text: z.string().max(MAX_CAPTURE_CHARS),
+    /** Título digitado à parte (bloco de notas do Início); sem ele, vem da primeira linha. */
+    title: z.string().max(200).optional(),
+  }),
 ]);
 
 const sha = z.string().regex(/^[0-9a-f]{40}$/);
