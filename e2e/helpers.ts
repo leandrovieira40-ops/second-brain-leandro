@@ -49,3 +49,19 @@ export const today = () =>
     month: '2-digit',
     day: '2-digit',
   }).format(new Date());
+
+const TYPE_LABELS: Record<string, string> = {
+  inbox: 'Captura (Inbox)',
+  permanent: 'Nota permanente',
+  concept: 'Conceito',
+  source: 'Fonte',
+  book: 'Livro',
+};
+
+/** Escolhe o tipo na janela "Nova nota" (cartões com o nome e a explicação de cada tipo). */
+export async function chooseNoteType(page: Page, type: string) {
+  const dialog = page.getByRole('dialog');
+  await dialog.getByText(TYPE_LABELS[type] ?? type, { exact: true }).click();
+  const label = TYPE_LABELS[type] ?? type;
+  await expect(dialog.getByRole('radio', { name: label, exact: false })).toBeChecked();
+}

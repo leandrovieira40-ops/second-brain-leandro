@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { expect, test } from './fixtures';
 import {
+  chooseNoteType,
   login,
   noteUrl,
   readVault,
@@ -22,8 +23,8 @@ test('Fase 1 — criar, salvar, fechar, reabrir e encontrar o conteúdo intacto'
   const title = `Teste E2E ${Date.now()}: ação & reação`;
   await page.getByRole('button', { name: 'Nova nota (Alt+N)' }).click();
   await page.getByLabel('Título').fill(title);
-  await page.getByLabel('Tipo').selectOption('permanent');
-  await expect(page.getByLabel('Pasta', { exact: true })).toHaveValue('03-Permanent-Notes');
+  await chooseNoteType(page, 'permanent');
+  await expect(page.getByRole('dialog')).toContainText('Vai ser salva em: 💡 Ideias');
   await page.getByRole('button', { name: 'Criar nota' }).click();
 
   const expectedPath = `03-Permanent-Notes/${title.replace(':', ' -')}.md`;
@@ -190,7 +191,7 @@ test('nome duplicado não sobrescreve a nota existente', async ({ page }) => {
   const before = await readVault(path);
   await page.getByRole('button', { name: 'Nova nota (Alt+N)' }).click();
   await page.getByLabel('Título').fill('posicionamento');
-  await page.getByLabel('Tipo').selectOption('concept');
+  await chooseNoteType(page, 'concept');
   await page.getByRole('button', { name: 'Criar nota' }).click();
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
     'Já existe uma nota com esse nome',

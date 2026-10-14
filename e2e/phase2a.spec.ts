@@ -1,7 +1,15 @@
 import { existsSync } from 'node:fs';
 import { expect, test } from './fixtures';
 import type { Page } from '@playwright/test';
-import { login, openNote, readVault, saveStatus, typeAtEnd, vaultFile } from './helpers';
+import {
+  chooseNoteType,
+  login,
+  openNote,
+  readVault,
+  saveStatus,
+  typeAtEnd,
+  vaultFile,
+} from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await login(page);
@@ -10,7 +18,7 @@ test.beforeEach(async ({ page }) => {
 async function createNote(page: Page, title: string, type = 'inbox') {
   await page.getByRole('button', { name: 'Nova nota (Alt+N)' }).click();
   await page.getByLabel('Título').fill(title);
-  await page.getByLabel('Tipo').selectOption(type);
+  await chooseNoteType(page, type);
   await page.getByRole('button', { name: 'Criar nota' }).click();
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
 }

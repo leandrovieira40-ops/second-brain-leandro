@@ -3,6 +3,7 @@
 import { ChevronRightIcon, FileTextIcon, FolderIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { folderDisplay } from '@/lib/notes/folders';
 import { noteName } from '@/lib/vault/paths';
 import { cn } from '@/lib/utils';
 import { noteHref } from './vault-context';
@@ -156,7 +157,7 @@ function FolderList({
                   className={cn('size-3.5 shrink-0 transition-transform', expanded && 'rotate-90')}
                 />
                 <FolderIcon className="text-muted-foreground size-4 shrink-0" />
-                <span className="truncate">{folder.name}</span>
+                <FolderName path={folder.path} name={folder.name} />
               </button>
               {expanded ? (
                 <FolderList
@@ -219,5 +220,27 @@ function NoteLink({
         ) : null}
       </span>
     </Link>
+  );
+}
+
+function FolderName({ path, name }: { path: string; name: string }) {
+  const display = folderDisplay(path);
+  const friendly = display.label !== name;
+  return (
+    <span
+      className="truncate"
+      title={[display.hint, friendly ? `Pasta: ${path}` : null].filter(Boolean).join(' · ') || path}
+    >
+      {friendly ? (
+        <>
+          <span aria-hidden className="mr-1">
+            {display.icon}
+          </span>
+          {display.label}
+        </>
+      ) : (
+        name
+      )}
+    </span>
   );
 }
