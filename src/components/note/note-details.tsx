@@ -3,7 +3,14 @@
 import { HashIcon, LinkIcon, TriangleAlertIcon } from 'lucide-react';
 import Link from 'next/link';
 import type { ParsedNote } from '@/lib/notes/parse';
-import { formatPropertyValue, isTemplateNote } from '@/lib/notes/property-display';
+import {
+  formatPropertyValue,
+  friendlyPropertyValue,
+  isTemplateNote,
+  propertyLabel,
+  TECHNICAL_PROPERTIES,
+} from '@/lib/notes/property-display';
+import { NOTE_TYPE_LABELS } from '@/lib/notes/types';
 import type { LinkResolver } from '@/lib/notes/resolve';
 import { noteHref } from '../vault-context';
 
@@ -59,16 +66,10 @@ export function NoteDetails({
             </span>
           </p>
         ) : note.frontmatter && Object.keys(note.frontmatter).length > 0 ? (
-          <dl className="grid grid-cols-[minmax(0,6rem)_1fr] gap-x-3 gap-y-1">
-            {Object.entries(note.frontmatter).map(([key, value]) => (
-              <div key={key} className="contents">
-                <dt className="text-muted-foreground truncate" title={key}>
-                  {key}
-                </dt>
-                <dd className="min-w-0 break-words">{formatPropertyValue(value)}</dd>
-              </div>
-            ))}
-          </dl>
+          <PropertyList
+            frontmatter={note.frontmatter}
+            template={isTemplateNote(note.path, rawFrontmatter)}
+          />
         ) : (
           <p className="text-muted-foreground text-xs">Sem frontmatter.</p>
         )}
@@ -156,6 +157,46 @@ export function NoteDetails({
       {backlinks}
 
       {history}
+    </div>
+  );
+}
+
+function PropertyList({
+  frontmatter,
+  template,
+}: {
+  frontmatter: Record<string, unknown>;
+  /** Em modelos, mostra os valores como escritos ({{date}}…). */
+  template: boolean;
+}) {
+  const entries = Object.entries(frontmatter);
+  const main = entries.filter(([key]) => !TECHNICAL_PROPERTIES.has(key) && key !== 'title');
+  const technical = entries.filter(([key]) => TECHNICAL_PROPERTIES.has(key));
+  const value = (key: string, raw: unknown) =>
+    template ? formatPropertyValue(raw) : friendlyPropertyValue(key, raw, NOTE_TYPE_LABELS);
+  const rows = (items: [string, unknown][]) => (
+    <dl className="grid grid-cols-[minmax(0,7rem)_1fr] gap-x-3 gap-y-1.5">
+      {items.map(([key, raw]) => (
+        <div key={key} className="contents">
+          <dt className="text-muted-foreground truncate" title={key}>
+            {propertyLabel(key)}
+          </dt>
+          <dd className="min-w-0 break-words">{value(key, raw)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+  return (
+    <div className="space-y-2">
+      {rows(main)}
+      {technical.length ? (
+        <details className="text-xs">
+          <summary className="text-muted-foreground cursor-pointer select-none">
+            Informações técnicas
+          </summary>
+          <div className="mt-2 break-all">{rows(technical)}</div>
+        </details>
+      ) : null}
     </div>
   );
 }

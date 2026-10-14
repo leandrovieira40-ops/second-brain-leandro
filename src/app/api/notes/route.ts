@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       input.mode === 'new'
         ? await service.create({ title: input.title, folder: input.folder, type: input.type })
         : input.mode === 'capture'
-          ? await service.capture(input.text)
+          ? await service.capture(input.text, input.title)
           : await service.createConflictCopy({
               sourcePath: input.sourcePath,
               content: input.content,

@@ -12,6 +12,7 @@ import {
   listTags,
   noteGraph,
   orphanNotes,
+  recentNotes,
   referencingNotes,
   searchNotes,
 } from '@/lib/index/queries';
@@ -208,6 +209,28 @@ describe.skipIf(!url)('índice derivado (PostgreSQL real)', () => {
         target: '04-Concepts/Posicionamento.md',
       },
     ]);
+  });
+
+  it('notas recentes: mais nova primeiro, sem modelos, com trecho sem marcação', async () => {
+    await indexed({
+      '00-Inbox/Velha.md': '---\nupdated: 2026-01-02\n---\nTexto **antigo**.\n',
+      '00-Inbox/Nova.md':
+        '---\ncreated: 2026-01-01\nupdated: 2026-10-13\n---\n## Ideia\nVer [[Velha]].\n',
+      '00-Inbox/Sem data.md': 'Só texto.\n',
+      '10-Templates/Modelo.md': '---\nupdated: 2099-01-01\n---\n{{title}}\n',
+    });
+    const notes = await recentNotes(db);
+    expect(notes.map((note) => note.path)).toEqual([
+      '00-Inbox/Nova.md',
+      '00-Inbox/Velha.md',
+      '00-Inbox/Sem data.md',
+    ]);
+    expect(notes[0]).toMatchObject({
+      title: 'Nova',
+      excerpt: 'Ideia Ver Velha.',
+      date: '2026-10-13',
+    });
+    expect(notes[2]?.date).toBeNull();
   });
 
   it('backlinks: vários links na mesma linha contam como uma entrada', async () => {

@@ -102,7 +102,7 @@ export function MarkdownPreview({
   );
 
   return (
-    <article className="prose prose-neutral dark:prose-invert prose-headings:tracking-tight prose-a:underline-offset-2 max-w-none px-6 py-6">
+    <article className="prose prose-neutral dark:prose-invert prose-headings:tracking-tight prose-a:underline-offset-2 max-w-none px-6 pt-4 pb-24">
       {body.trim() ? (
         <Markdown
           remarkPlugins={[

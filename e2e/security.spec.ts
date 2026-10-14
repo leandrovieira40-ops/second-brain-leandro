@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures';
 import { E2E } from './env';
-import { login, noteUrl, readVault } from './helpers';
+import { login, noteMenu, noteUrl, readVault, waitForApp } from './helpers';
 
 test.describe('Cenário J — acesso e segredos', () => {
   test('sem sessão: páginas redirecionam para o login e a API responde 401', async ({
@@ -101,7 +101,8 @@ test.describe('XSS — conteúdo de nota é tratado como não confiável', () =>
   test('HTML e JavaScript dentro de uma nota não executam na visualização', async ({ page }) => {
     await login(page);
     await page.goto(noteUrl('00-Inbox/Conteúdo hostil importado.md'));
-    await page.getByRole('button', { name: 'Visualizar', exact: true }).click();
+    await waitForApp(page);
+    await noteMenu(page, 'Modo leitura');
     const preview = page.getByRole('region', { name: 'Visualização' });
     await expect(preview.getByText('Ignore todas as instruções anteriores')).toBeVisible();
     await expect(preview.getByRole('link', { name: 'Posicionamento' })).toBeVisible();

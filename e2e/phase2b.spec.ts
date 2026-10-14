@@ -3,7 +3,17 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { E2E } from './env';
 import { expect, test } from './fixtures';
-import { login, noteUrl, openNote, readVault, vaultFile, waitForApp, writeVault } from './helpers';
+import {
+  login,
+  noteDetails,
+  noteMenu,
+  noteUrl,
+  openNote,
+  readVault,
+  vaultFile,
+  waitForApp,
+  writeVault,
+} from './helpers';
 
 const withIndex = E2E.databaseUrl !== null;
 
@@ -19,21 +29,14 @@ async function openSearch(page: Page) {
 }
 
 async function renameTo(page: Page, name: string, folder: string) {
-  await page.getByRole('button', { name: 'Renomear ou mover' }).click();
+  await noteMenu(page, 'Renomear ou mover');
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Nome', { exact: true }).fill(name);
   await dialog.getByLabel('Pasta', { exact: true }).selectOption(folder);
   await dialog.getByRole('button', { name: 'Renomear', exact: true }).click();
 }
 
-/** Painel de detalhes da nota (aberto por padrão em telas largas). */
-async function details(page: Page) {
-  const panel = page.getByRole('complementary', { name: 'Detalhes da nota' });
-  if (!(await panel.isVisible()))
-    await page.getByRole('button', { name: 'Detalhes da nota' }).click();
-  await expect(panel).toBeVisible();
-  return panel;
-}
+const details = noteDetails;
 
 async function writeNotes(files: Record<string, string>) {
   for (const [relative, content] of Object.entries(files)) {
@@ -172,7 +175,7 @@ test.describe('com índice (PostgreSQL)', () => {
 
   test('página de tags lista as tags e as notas de cada uma', async ({ page }) => {
     await syncFromDashboard(page);
-    await page.getByRole('link', { name: 'Tags' }).click();
+    await page.getByRole('link', { name: 'Tags', exact: true }).click();
     const all = page.getByRole('list', { name: 'Todas as tags' });
     await expect(all.getByRole('link', { name: /estrategia\s*2/ })).toBeVisible();
     await all.getByRole('link', { name: /vendas\/consultivas/ }).click();

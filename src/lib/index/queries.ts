@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Database } from '@/lib/db/connect';
+import { plainExcerpt } from '@/lib/notes/excerpt';
 
 /** Marcadores de destaque nos trechos (caracteres de controle: não aparecem em notas). */
 export const HIGHLIGHT_START = '\u0002';
@@ -209,4 +210,45 @@ export async function noteGraph(db: Database, limit = 5000): Promise<GraphData> 
     nodes: nodes.rows,
     edges: edges.rows.filter((edge) => present.has(edge.source) && present.has(edge.target)),
   };
+}
+
+export interface RecentNote {
+  path: string;
+  title: string;
+  type: string;
+  tags: string[];
+  /** Começo do texto, sem marcação. */
+  excerpt: string;
+  /** `updated` (ou `created`) do frontmatter, quando é uma data `AAAA-MM-DD`. */
+  date: string | null;
+}
+
+/** Notas mais recentes (por `updated`/`created` do frontmatter) para os cartões do Início. */
+export async function recentNotes(db: Database, limit = 24): Promise<RecentNote[]> {
+  const result = await db.execute<{
+    path: string;
+    title: string;
+    type: string;
+    tags: string[];
+    body: string;
+    date: string | null;
+  }>(sql`
+    select path, title, type, tags, left(body, 1500) as body,
+      coalesce(frontmatter->>'updated', frontmatter->>'created') as date
+    from notes
+    where path !~* '(^|/)([0-9]+-)?templates?/'
+    order by
+      case when coalesce(frontmatter->>'updated', frontmatter->>'created') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+        then coalesce(frontmatter->>'updated', frontmatter->>'created') end desc nulls last,
+      indexed_at desc, path
+    limit ${limit}
+  `);
+  return result.rows.map((row) => ({
+    path: row.path,
+    title: row.title,
+    type: row.type,
+    tags: row.tags,
+    excerpt: plainExcerpt(row.body),
+    date: row.date && /^\d{4}-\d{2}-\d{2}$/.test(row.date) ? row.date : null,
+  }));
 }

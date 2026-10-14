@@ -1,8 +1,9 @@
 'use client';
 
 import {
+  BookOpenIcon,
   Columns2Icon,
-  EyeIcon,
+  EllipsisIcon,
   FolderInputIcon,
   PanelRightIcon,
   PencilIcon,
@@ -22,9 +23,17 @@ import {
 } from 'react';
 import { Button } from '@/components/ui/button';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   ApiError,
   createConflictCopy,
   readNote,
+  renameNote,
   restoreVersion,
   saveNote,
   trashNote,
@@ -32,10 +41,13 @@ import {
   type NoteDto,
 } from '@/lib/client/api';
 import { loadDraft, removeDraft, saveDraft, type Draft } from '@/lib/editor/drafts';
+import type { SaveController } from '@/lib/editor/save-controller';
+import { folderDisplay, folderTrail } from '@/lib/notes/folders';
 import { findFrontmatter } from '@/lib/notes/frontmatter';
 import { parseNote } from '@/lib/notes/parse';
 import { LinkResolver } from '@/lib/notes/resolve';
 import { cn } from '@/lib/utils';
+import { dirname } from '@/lib/vault/paths';
 import { noteHref, useShell, useVault } from '../vault-context';
 import { createEditorSession } from './editor-session';
 import { MarkdownPreview } from './markdown-preview';
@@ -43,6 +55,8 @@ import { LocalGraph } from '../graph/local-graph';
 import { NoteBacklinks } from './note-backlinks';
 import { NoteDetails } from './note-details';
 import { NoteHistory } from './note-history';
+import { NoteMeta } from './note-meta';
+import { NoteTitle } from './note-title';
 import { RenameDialog, type RenameOutcome } from './rename-dialog';
 import { SaveStatus } from './save-status';
 
@@ -67,6 +81,9 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
   const [mode, setMode] = useState<ViewMode>('edit');
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  // Muda quando uma troca de título falha: o título volta ao original.
+  const [titleVersion, setTitleVersion] = useState(0);
 
   const [session] = useState(() => createEditorSession(note, timeZone));
   const { controller } = session;
@@ -96,16 +113,8 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
     } catch {
       preferred = null;
     }
-    const wide = window.matchMedia('(min-width: 1280px)').matches;
     /* eslint-disable react-hooks/set-state-in-effect -- dados do navegador, inexistentes no servidor */
-    setMode(
-      preferred === 'edit' || preferred === 'split' || preferred === 'preview'
-        ? preferred
-        : wide
-          ? 'split'
-          : 'edit',
-    );
-    setDetailsOpen(wide);
+    setMode(preferred === 'split' || preferred === 'preview' ? preferred : 'edit');
     const draft = loadDraft(note.path);
     if (draft && draft.content !== note.content) setPendingDraft(draft);
     else if (draft) removeDraft(note.path);
@@ -277,6 +286,32 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
     setRenameOpen(true);
   }
 
+  async function renameFromTitle(title: string) {
+    setRenaming(true);
+    setNotice(null);
+    try {
+      if (!(await waitUntilSaved(controller))) {
+        throw new ApiError(0, 'not_saved', 'salve o texto antes (Ctrl+S) e tente de novo.');
+      }
+      const result = await renameNote({
+        path: note.path,
+        expectedSha: controller.getState().baseSha,
+        title,
+        folder: dirname(note.path),
+      });
+      onRenamed({ path: result.path, updatedNotes: result.updatedNotes });
+    } catch (error) {
+      setTitleVersion((version) => version + 1);
+      setNotice({
+        text:
+          error instanceof ApiError
+            ? `O título não mudou: ${error.message}`
+            : 'Sem conexão: o título não mudou.',
+      });
+    }
+    setRenaming(false);
+  }
+
   function onRenamed(outcome: RenameOutcome) {
     removeDraft(note.path);
     notePathChanged(note.path, outcome.path);
@@ -328,85 +363,69 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
     setPendingDraft(null);
   }
 
+  const folder = dirname(note.path);
+  const focusEditor = () => session.focus();
   const showEditor = mode !== 'preview';
   const showPreview = mode !== 'edit';
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2">
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-semibold" title={parsed.title}>
-            {parsed.title}
-          </h1>
-          <p className="text-muted-foreground truncate text-xs" title={note.path}>
-            {note.path}
-          </p>
-        </div>
-        <SaveStatus state={state} onRetry={() => controller.saveNow()} />
-        <div className="flex items-center gap-1">
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-pressed={favorite}
-            aria-label={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-            title={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-            onClick={() => toggleFavorite(note.path)}
-          >
-            <StarIcon className={favorite ? 'text-warning fill-current' : undefined} />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label="Renomear ou mover"
-            title="Renomear ou mover"
-            disabled={busy}
-            onClick={startRename}
-          >
-            <FolderInputIcon />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label="Mover para a lixeira"
-            title="Mover para a lixeira"
-            disabled={busy}
-            onClick={moveToTrash}
-          >
-            <Trash2Icon />
-          </Button>
-        </div>
-        <div className="flex items-center gap-1" role="group" aria-label="Modo de exibição">
-          {(
-            [
-              ['edit', PencilIcon, 'Editar'],
-              ['split', Columns2Icon, 'Editar e visualizar'],
-              ['preview', EyeIcon, 'Visualizar'],
-            ] as const
-          ).map(([value, Icon, label]) => (
-            <Button
-              key={value}
-              size="icon-sm"
-              variant={mode === value ? 'outline' : 'ghost'}
-              aria-pressed={mode === value}
-              aria-label={label}
-              title={label}
-              onClick={() => changeMode(value)}
-            >
-              <Icon />
+      <header className="flex items-center gap-2 border-b px-4 py-2">
+        <p
+          className="text-muted-foreground min-w-0 flex-1 truncate text-sm"
+          title={`${folderTrail(folder)} — arquivo ${note.path}`}
+        >
+          <span aria-hidden="true">{folderDisplay(folder).icon} </span>
+          {folderTrail(folder)}
+        </p>
+        <SaveStatus
+          state={state}
+          onSave={() => controller.saveNow()}
+          disabled={pendingDraft !== null || renaming}
+        />
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-pressed={favorite}
+          aria-label={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+          title={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+          onClick={() => toggleFavorite(note.path)}
+        >
+          <StarIcon className={favorite ? 'text-warning fill-current' : undefined} />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon-sm" variant="ghost" aria-label="Mais opções" title="Mais opções">
+              <EllipsisIcon />
             </Button>
-          ))}
-          <Button
-            size="icon-sm"
-            variant={detailsOpen ? 'outline' : 'ghost'}
-            aria-expanded={detailsOpen}
-            aria-controls="note-details"
-            aria-label="Detalhes da nota"
-            title="Detalhes da nota"
-            onClick={() => setDetailsOpen((open) => !open)}
-          >
-            <PanelRightIcon />
-          </Button>
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {mode === 'edit' ? (
+              <DropdownMenuItem onSelect={() => changeMode('preview')}>
+                <BookOpenIcon /> Modo leitura
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onSelect={() => changeMode('edit')}>
+                <PencilIcon /> Voltar a escrever
+              </DropdownMenuItem>
+            )}
+            {mode !== 'split' ? (
+              <DropdownMenuItem onSelect={() => changeMode('split')} className="max-lg:hidden">
+                <Columns2Icon /> Escrever e ver o resultado lado a lado
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuItem onSelect={() => setDetailsOpen((open) => !open)}>
+              <PanelRightIcon /> {detailsOpen ? 'Esconder detalhes' : 'Detalhes da nota'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={busy || renaming} onSelect={startRename}>
+              <FolderInputIcon /> Renomear ou mover
+            </DropdownMenuItem>
+            <DropdownMenuItem destructive disabled={busy || renaming} onSelect={moveToTrash}>
+              <Trash2Icon /> Mover para a lixeira
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       {state.status === 'conflict' ? (
@@ -487,43 +506,70 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
       ) : null}
 
       <div className="flex min-h-0 flex-1">
-        {showEditor ? (
-          <section
-            aria-label="Editor"
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto" data-testid="note-page">
+          <div
             className={cn(
-              'min-h-0 min-w-0 overflow-hidden',
-              showPreview ? 'hidden flex-1 border-r lg:block' : 'flex-1',
+              'mx-auto px-6 pt-10 sm:px-12',
+              showEditor && showPreview ? 'max-w-6xl' : 'max-w-3xl',
             )}
           >
-            <div className="mx-auto h-full max-w-3xl">
-              <MarkdownEditor
-                initialValue={note.content}
-                readOnly={pendingDraft !== null}
-                onReady={session.attachView}
-                onChange={onEditorChange}
-                suggest={session.suggest}
-              />
-            </div>
-          </section>
-        ) : null}
-        {showPreview ? (
-          <section aria-label="Visualização" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-3xl">
-              <MarkdownPreview
-                content={deferred}
-                path={note.path}
-                resolver={resolver}
-                onCreateNote={createFromLink}
-              />
-            </div>
-          </section>
-        ) : null}
+            <NoteTitle
+              key={titleVersion}
+              title={parsed.title}
+              disabled={pendingDraft !== null || renaming || busy}
+              onCommit={renameFromTitle}
+              onEnter={focusEditor}
+            />
+            <NoteMeta note={parsed} />
+          </div>
+          <div
+            className={cn(
+              'mx-auto',
+              showEditor && showPreview ? 'grid max-w-6xl lg:grid-cols-2' : 'max-w-3xl',
+            )}
+          >
+            {showEditor ? (
+              <section
+                aria-label="Editor"
+                className={cn('min-w-0 sm:px-6', showPreview && 'hidden lg:block lg:border-r')}
+              >
+                <MarkdownEditor
+                  initialValue={note.content}
+                  readOnly={pendingDraft !== null || renaming}
+                  onReady={session.attachView}
+                  onChange={onEditorChange}
+                  suggest={session.suggest}
+                />
+              </section>
+            ) : null}
+            {showPreview ? (
+              <section aria-label="Visualização" className="min-w-0 sm:px-6">
+                <MarkdownPreview
+                  content={deferred}
+                  path={note.path}
+                  resolver={resolver}
+                  onCreateNote={createFromLink}
+                />
+              </section>
+            ) : null}
+          </div>
+        </div>
         {detailsOpen ? (
           <aside
             id="note-details"
             aria-label="Detalhes da nota"
             className="bg-sidebar w-72 shrink-0 overflow-y-auto border-l max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-20"
           >
+            <div className="flex justify-end px-2 pt-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-controls="note-details"
+                onClick={() => setDetailsOpen(false)}
+              >
+                Fechar detalhes
+              </Button>
+            </div>
             <NoteDetails
               note={parsed}
               resolver={resolver}
@@ -547,4 +593,27 @@ export function NoteWorkspace({ note }: { note: NoteDto }) {
       ) : null}
     </div>
   );
+}
+
+/** Pede para gravar já e espera a confirmação do servidor (até ~15 s). */
+function waitUntilSaved(controller: SaveController): Promise<boolean> {
+  const done = () => {
+    const state = controller.getState();
+    return state.status === 'saved' && !state.unsaved;
+  };
+  if (done()) return Promise.resolve(true);
+  controller.saveNow();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      unsubscribe();
+      resolve(false);
+    }, 15_000);
+    const unsubscribe = controller.subscribe((state) => {
+      if (state.status === 'conflict' || done()) {
+        clearTimeout(timer);
+        unsubscribe();
+        resolve(done());
+      }
+    });
+  });
 }

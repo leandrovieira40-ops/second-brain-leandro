@@ -4,6 +4,8 @@ import type { Page } from '@playwright/test';
 import {
   chooseNoteType,
   login,
+  noteDetails,
+  noteMenu,
   openNote,
   readVault,
   saveStatus,
@@ -53,7 +55,7 @@ test('link quebrado vira atalho para criar a nota, que passa a ser resolvida', a
   await typeAtEnd(page, `\nLigado a [[${missing}]].`);
   await page.keyboard.press('ControlOrMeta+s');
   await expect(saveStatus(page)).toHaveAttribute('data-status', 'saved');
-  await page.getByRole('button', { name: 'Editar e visualizar' }).click();
+  await noteMenu(page, 'Escrever e ver o resultado lado a lado');
   await page
     .getByRole('region', { name: 'Visualização' })
     .getByRole('button', { name: missing })
@@ -75,7 +77,7 @@ test('lixeira: mover, ver, restaurar no lugar de origem e excluir de vez', async
   const content = await readVault(path);
 
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: 'Mover para a lixeira' }).click();
+  await noteMenu(page, 'Mover para a lixeira');
   await expect(page).toHaveURL(/\/trash$/);
   expect(existsSync(vaultFile(path))).toBe(false);
   expect(await readVault(`.trash/${path}`)).toBe(content);
@@ -92,7 +94,7 @@ test('lixeira: mover, ver, restaurar no lugar de origem e excluir de vez', async
   // Exclusão definitiva
   await openNote(page, path);
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: 'Mover para a lixeira' }).click();
+  await noteMenu(page, 'Mover para a lixeira');
   await expect(page).toHaveURL(/\/trash$/);
   page.once('dialog', (dialog) => dialog.accept());
   await page
@@ -112,7 +114,7 @@ test('lixeira recusa nota com alterações não salvas', async ({ page }) => {
     route.request().method() === 'PUT' ? route.abort('internetdisconnected') : route.continue(),
   );
   await typeAtEnd(page, '\ntexto pendente');
-  await page.getByRole('button', { name: 'Mover para a lixeira' }).click();
+  await noteMenu(page, 'Mover para a lixeira');
   await expect(
     page.getByText('Salve as alterações (Ctrl+S) antes de mover a nota para a lixeira.'),
   ).toBeVisible();
@@ -143,7 +145,7 @@ test('recentes deste navegador e histórico indisponível na pasta local', async
   await expect(recents.getByRole('link').first()).toHaveText('Exemplo de livro');
   await expect(recents.getByRole('link', { name: 'Posicionamento', exact: true })).toBeVisible();
 
-  const details = page.getByRole('complementary', { name: 'Detalhes da nota' });
+  const details = await noteDetails(page);
   await details.getByRole('button', { name: 'Ver versões anteriores' }).click();
   await expect(details.getByText('Histórico disponível com o vault no GitHub')).toBeVisible();
 });

@@ -1,14 +1,6 @@
 'use client';
 
-import {
-  ClockIcon,
-  FileTextIcon,
-  InboxIcon,
-  PlusIcon,
-  StarIcon,
-  TriangleAlertIcon,
-  ZapIcon,
-} from 'lucide-react';
+import { ClockIcon, FileTextIcon, PlusIcon, StarIcon, TriangleAlertIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -16,17 +8,20 @@ import { listDraftPaths } from '@/lib/editor/drafts';
 import { INBOX_FOLDER } from '@/lib/notes/types';
 import { noteName } from '@/lib/vault/paths';
 import { IndexHealth } from './index-health';
+import { NoteCards } from './note-cards';
+import { QuickNote } from './quick-note';
 import { noteHref, useShell, useVault } from './vault-context';
 
 /** Painel inicial: somente indicadores calculados a partir de dados reais do vault e do navegador. */
 export function Dashboard() {
   const { tree, error: vaultError } = useVault();
-  const { openNewNote, openCapture, favorites, recents } = useShell();
+  const { openNewNote, favorites, recents } = useShell();
   const existing = new Set(tree.notes);
   const [drafts, setDrafts] = useState<string[]>([]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage só existe no cliente
   useEffect(() => setDrafts(listDraftPaths().sort()), []);
 
+  const [reload, setReload] = useState(0);
   const inbox = tree.notes.filter((path) => path.startsWith(`${INBOX_FOLDER}/`));
 
   return (
@@ -37,19 +32,17 @@ export function Dashboard() {
             <h1 className="text-2xl font-semibold tracking-tight">Início</h1>
             <p className="text-muted-foreground text-sm">
               {tree.notes.length} {tree.notes.length === 1 ? 'nota' : 'notas'} ·{' '}
-              {tree.folders.length} {tree.folders.length === 1 ? 'pasta' : 'pastas'} ·{' '}
-              {tree.attachments.length} {tree.attachments.length === 1 ? 'anexo' : 'anexos'}
+              {tree.folders.length} {tree.folders.length === 1 ? 'pasta' : 'pastas'}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={openCapture}>
-              <ZapIcon /> Captura rápida <kbd className="ml-1 text-xs opacity-70">Alt+C</kbd>
-            </Button>
-            <Button onClick={() => openNewNote()}>
-              <PlusIcon /> Nova nota <kbd className="ml-1 text-xs opacity-70">Alt+N</kbd>
-            </Button>
-          </div>
+          <Button variant="outline" onClick={() => openNewNote()}>
+            <PlusIcon /> Nota com modelo <kbd className="ml-1 text-xs opacity-70">Alt+N</kbd>
+          </Button>
         </header>
+
+        <div className="mx-auto max-w-xl">
+          <QuickNote onSaved={() => setReload((value) => value + 1)} />
+        </div>
 
         {vaultError ? (
           <section
@@ -87,33 +80,9 @@ export function Dashboard() {
 
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <InboxIcon className="size-4" /> Inbox ({inbox.length})
+            <ClockIcon className="size-4" /> Notas recentes
           </h2>
-          {inbox.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nada aguardando processamento em <code>{INBOX_FOLDER}</code>. Capturas rápidas entram
-              aqui.
-            </p>
-          ) : (
-            <ul className="divide-y rounded-lg border">
-              {inbox.slice(0, 20).map((path) => (
-                <li key={path}>
-                  <Link
-                    href={noteHref(path)}
-                    className="hover:bg-muted flex items-center gap-2 px-4 py-2 text-sm"
-                  >
-                    <FileTextIcon className="text-muted-foreground size-4" />
-                    {noteName(path)}
-                  </Link>
-                </li>
-              ))}
-              {inbox.length > 20 ? (
-                <li className="text-muted-foreground px-4 py-2 text-sm">
-                  e mais {inbox.length - 20} na barra lateral.
-                </li>
-              ) : null}
-            </ul>
-          )}
+          <NoteCards reload={reload} fallback={[...recents, ...inbox]} />
         </section>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -125,7 +94,7 @@ export function Dashboard() {
             empty="Marque notas com a estrela para tê-las sempre à mão."
           />
           <NoteList
-            title="Recentes neste navegador"
+            title="Abertas neste navegador"
             icon={<ClockIcon className="size-4" />}
             paths={recents.slice(0, 8)}
             existing={existing}

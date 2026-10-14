@@ -30,6 +30,20 @@ export const writeVault = (relative: string, content: string) =>
 
 export const noteUrl = (relative: string) => `/note?path=${encodeURIComponent(relative)}`;
 
+/** Escolhe uma opção do menu "Mais opções" (⋯) da nota. */
+export async function noteMenu(page: Page, item: string) {
+  await page.getByRole('button', { name: 'Mais opções' }).click();
+  await page.getByRole('menuitem', { name: item }).click();
+}
+
+/** Abre o painel "Detalhes da nota" (fechado por padrão). */
+export async function noteDetails(page: Page) {
+  const panel = page.getByRole('complementary', { name: 'Detalhes da nota' });
+  if (!(await panel.isVisible())) await noteMenu(page, 'Detalhes da nota');
+  await expect(panel).toBeVisible();
+  return panel;
+}
+
 export function saveStatus(page: Page) {
   return page.getByTestId('save-status');
 }
