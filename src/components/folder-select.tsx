@@ -1,7 +1,7 @@
 'use client';
 
 import { NativeSelect } from '@/components/ui/select';
-import { folderDisplay } from '@/lib/notes/folders';
+import { folderDisplay, folderOptions } from '@/lib/notes/folders';
 
 /** Lista de pastas com nomes amigáveis ("📥 Caixa de entrada") e a explicação da escolhida. */
 export function FolderSelect({
@@ -15,9 +15,7 @@ export function FolderSelect({
   folders: readonly string[];
   onChange: (folder: string) => void;
 }) {
-  const options = [...new Set(['', ...folders, value])]
-    .filter((folder) => folder === '' || !folder.split('/').some((part) => part.startsWith('.')))
-    .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+  const options = folderOptions(folders, value);
   const hint = folderDisplay(value).hint;
   return (
     <div className="space-y-1">

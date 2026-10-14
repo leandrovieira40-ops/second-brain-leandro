@@ -65,3 +65,10 @@ export const NOTE_TYPE_INFO: Partial<Record<NoteType, { icon: string; hint: stri
   daily: { icon: '📅', hint: 'O registro de um dia' },
   review: { icon: '🔁', hint: 'Uma revisão da semana, do mês…' },
 };
+
+/** Pastas para escolher (raiz incluída, ocultas como `.trash` fora), em ordem alfabética. */
+export function folderOptions(folders: readonly string[], current?: string): string[] {
+  return [...new Set(['', ...folders, ...(current !== undefined ? [current] : [])])]
+    .filter((folder) => folder === '' || !folder.split('/').some((part) => part.startsWith('.')))
+    .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+}
