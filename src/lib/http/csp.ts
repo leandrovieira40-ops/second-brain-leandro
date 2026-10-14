@@ -16,6 +16,8 @@ export function contentSecurityPolicy({
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
+    // pdf.js lê PDFs num worker (importar PDF); sem isto o 'strict-dynamic' acima o bloquearia.
+    "worker-src 'self' blob:",
     `connect-src 'self'${dev ? ' ws: wss:' : ''}`,
     "object-src 'none'",
     "base-uri 'self'",

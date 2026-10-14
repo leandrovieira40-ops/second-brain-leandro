@@ -1,6 +1,13 @@
 'use client';
 
-import { ClockIcon, FileTextIcon, PlusIcon, StarIcon, TriangleAlertIcon } from 'lucide-react';
+import {
+  ClockIcon,
+  FileTextIcon,
+  FileUpIcon,
+  PlusIcon,
+  StarIcon,
+  TriangleAlertIcon,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +15,7 @@ import { listDraftPaths } from '@/lib/editor/drafts';
 import { INBOX_FOLDER } from '@/lib/notes/types';
 import { noteName } from '@/lib/vault/paths';
 import { IndexHealth } from './index-health';
+import { ImportPdfDialog } from './import-pdf-dialog';
 import { NoteCards } from './note-cards';
 import { QuickNote } from './quick-note';
 import { noteHref, useShell, useVault } from './vault-context';
@@ -22,6 +30,7 @@ export function Dashboard() {
   useEffect(() => setDrafts(listDraftPaths().sort()), []);
 
   const [reload, setReload] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
   const inbox = tree.notes.filter((path) => path.startsWith(`${INBOX_FOLDER}/`));
 
   return (
@@ -35,9 +44,14 @@ export function Dashboard() {
               {tree.folders.length} {tree.folders.length === 1 ? 'pasta' : 'pastas'}
             </p>
           </div>
-          <Button variant="outline" onClick={() => openNewNote()}>
-            <PlusIcon /> Nota com modelo <kbd className="ml-1 text-xs opacity-70">Alt+N</kbd>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <FileUpIcon /> Importar PDF
+            </Button>
+            <Button variant="outline" onClick={() => openNewNote()}>
+              <PlusIcon /> Nota com modelo <kbd className="ml-1 text-xs opacity-70">Alt+N</kbd>
+            </Button>
+          </div>
         </header>
 
         <div className="mx-auto max-w-xl">
@@ -114,6 +128,7 @@ export function Dashboard() {
           </section>
         ) : null}
       </div>
+      <ImportPdfDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }

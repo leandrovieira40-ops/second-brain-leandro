@@ -125,6 +125,33 @@ export function readVaultConfig(env: Env = process.env): VaultConfig {
   };
 }
 
+const aiSchema = z.object({
+  ANTHROPIC_API_KEY: optional(
+    z
+      .string()
+      .trim()
+      .min(20)
+      .regex(/^[\x21-\x7e]+$/),
+  ),
+  AI_MODEL: optional(
+    z
+      .string()
+      .trim()
+      .regex(/^[a-z0-9.-]+$/),
+  ).transform((v) => v ?? 'claude-opus-5-5'),
+});
+
+export interface AiConfig {
+  apiKey: string;
+  model: string;
+}
+
+/** Chave da IA (opcional — sem ela, importar PDF fica indisponível). Só existe no servidor. */
+export function readAiConfig(env: Env = process.env): AiConfig | null {
+  const data = parse(aiSchema, env);
+  return data.ANTHROPIC_API_KEY ? { apiKey: data.ANTHROPIC_API_KEY, model: data.AI_MODEL } : null;
+}
+
 const databaseSchema = z.object({
   DATABASE_URL: optional(z.string().regex(/^postgres(ql)?:\/\//)),
   GITHUB_WEBHOOK_SECRET: optional(z.string().min(20)),

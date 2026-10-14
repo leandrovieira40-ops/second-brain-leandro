@@ -176,6 +176,30 @@ describe('NotesService.capture', () => {
   });
 });
 
+describe('NotesService.importSource', () => {
+  it('cria a fonte em 02-Sources com autor, tags e tipo pdf, sem sobrescrever', async () => {
+    const { service, store } = setup({ '02-Sources/Livro.md': 'original' });
+    const result = await service.importSource({
+      title: 'Livro',
+      body: '## Resumo (IA)\n\nTexto.\n',
+      author: 'Ana: Silva',
+      tags: ['filosofia'],
+      sourceType: 'pdf',
+    });
+    expect(result.path).toBe('02-Sources/Livro 2.md');
+    expect((await store.read('02-Sources/Livro.md')).content).toBe('original');
+    const content = (await store.read(result.path)).content;
+    expect(parseNote(result.path, content).frontmatter).toMatchObject({
+      type: 'source',
+      title: 'Livro',
+      author: 'Ana: Silva',
+      source_type: 'pdf',
+      tags: ['filosofia'],
+    });
+    expect(content.endsWith('---\n## Resumo (IA)\n\nTexto.\n')).toBe(true);
+  });
+});
+
 describe('NotesService lixeira', () => {
   it('move para .trash/ num único commit e restaura no lugar de origem', async () => {
     const { service, store } = setup({ 'Projetos/Plano.md': 'conteúdo' });

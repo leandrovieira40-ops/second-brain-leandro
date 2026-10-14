@@ -1,3 +1,4 @@
+import type { PdfImportInput } from '@/lib/import/pdf-note';
 import type { SaveOutcome } from '@/lib/editor/save-controller';
 
 /** Chamadas do navegador para a API. Nunca carrega segredos: a sessão vai no cookie httpOnly. */
@@ -217,6 +218,13 @@ export interface RecentNoteDto {
 
 export function recentNotes(signal?: AbortSignal) {
   return request<{ available: boolean; notes: RecentNoteDto[] }>('/api/notes/recent', { signal });
+}
+
+export function importPdf(input: PdfImportInput) {
+  return request<{ path: string; sha: string }>('/api/import/pdf', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
 export function listTags() {

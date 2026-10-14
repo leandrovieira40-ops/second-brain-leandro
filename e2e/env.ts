@@ -34,6 +34,8 @@ export const E2E = {
       NEXT_TELEMETRY_DISABLED: '1',
       // Vazio = sem índice, mesmo que o shell tenha um DATABASE_URL (nunca o banco de verdade).
       DATABASE_URL: databaseUrl ?? '',
+      // Nunca chama a IA de verdade nos testes (sem custo e sem dados saindo da máquina).
+      ANTHROPIC_API_KEY: '',
     };
   },
 };
