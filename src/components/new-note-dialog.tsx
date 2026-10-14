@@ -6,14 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/select';
 import { ApiError, createNote } from '@/lib/client/api';
+import { folderDisplay, NOTE_TYPE_INFO } from '@/lib/notes/folders';
 import {
   DEFAULT_FOLDER_BY_TYPE,
   NOTE_TYPE_LABELS,
   NOTE_TYPES,
   type NoteType,
 } from '@/lib/notes/types';
+import { cn } from '@/lib/utils';
+import { FolderSelect } from './folder-select';
 import { noteHref, useVault } from './vault-context';
 
 const CREATABLE = NOTE_TYPES.filter((type) => type !== 'template' && type !== 'note');
@@ -32,12 +34,10 @@ export function NewNoteDialog({
   const { tree } = useVault();
   const [type, setType] = useState<NoteType>('inbox');
   const [folder, setFolder] = useState<string>(DEFAULT_FOLDER_BY_TYPE.inbox);
+  const [choosingFolder, setChoosingFolder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-
-  const folderOptions = [...new Set(['', ...tree.folders, folder])].sort((a, b) =>
-    a.localeCompare(b, 'pt-BR'),
-  );
+  const destination = folderDisplay(folder);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,10 +61,10 @@ export function NewNoteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl">
         <DialogTitle>Nova nota</DialogTitle>
         <DialogDescription>
-          O arquivo é criado no vault imediatamente. Nada existente é sobrescrito.
+          Escolha o tipo: a pasta certa é escolhida para você. Nada existente é sobrescrito.
         </DialogDescription>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -78,40 +78,83 @@ export function NewNoteDialog({
               defaultValue={initialTitle}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="new-note-type">Tipo</Label>
-              <NativeSelect
-                id="new-note-type"
-                value={type}
-                onChange={(event) => {
-                  const next = event.target.value as NoteType;
-                  setType(next);
-                  setFolder(DEFAULT_FOLDER_BY_TYPE[next]);
-                }}
-              >
-                {CREATABLE.map((option) => (
-                  <option key={option} value={option}>
-                    {NOTE_TYPE_LABELS[option]}
-                  </option>
-                ))}
-              </NativeSelect>
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Tipo de nota</legend>
+            <div className="grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+              {CREATABLE.map((option) => {
+                const info = NOTE_TYPE_INFO[option];
+                const selected = option === type;
+                return (
+                  <label
+                    key={option}
+                    className={cn(
+                      'hover:bg-muted flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm',
+                      selected && 'border-primary bg-accent text-accent-foreground hover:bg-accent',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="type"
+                      value={option}
+                      checked={selected}
+                      onChange={() => {
+                        setType(option);
+                        setFolder(DEFAULT_FOLDER_BY_TYPE[option]);
+                      }}
+                      className="sr-only"
+                    />
+                    <span aria-hidden className="text-base leading-5">
+                      {info?.icon}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block font-medium">{NOTE_TYPE_LABELS[option]}</span>
+                      {info ? (
+                        <span
+                          className={cn(
+                            'block text-xs',
+                            selected ? 'opacity-80' : 'text-muted-foreground',
+                          )}
+                        >
+                          {info.hint}
+                        </span>
+                      ) : null}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-note-folder">Pasta</Label>
-              <NativeSelect
-                id="new-note-folder"
-                value={folder}
-                onChange={(event) => setFolder(event.target.value)}
-              >
-                {folderOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option || '(raiz do vault)'}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
+          </fieldset>
+
+          <div className="space-y-2 rounded-md border p-3 text-sm">
+            <p>
+              Vai ser salva em:{' '}
+              <strong>
+                {destination.icon} {destination.label}
+              </strong>{' '}
+              {!choosingFolder ? (
+                <button
+                  type="button"
+                  className="text-primary ml-1 text-xs underline underline-offset-2"
+                  onClick={() => setChoosingFolder(true)}
+                >
+                  escolher outra pasta
+                </button>
+              ) : null}
+            </p>
+            {choosingFolder ? (
+              <div className="space-y-1">
+                <Label htmlFor="new-note-folder">Pasta</Label>
+                <FolderSelect
+                  id="new-note-folder"
+                  value={folder}
+                  folders={tree.folders}
+                  onChange={setFolder}
+                />
+              </div>
+            ) : null}
           </div>
+
           {error ? (
             <p role="alert" className="text-destructive text-sm">
               {error}

@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/select';
 import { ApiError, renameNote } from '@/lib/client/api';
 import { dirname, noteName } from '@/lib/vault/paths';
+import { FolderSelect } from '../folder-select';
 import { useVault } from '../vault-context';
 
 export interface RenameOutcome {
@@ -34,9 +34,6 @@ export function RenameDialog({
   const [folder, setFolder] = useState(dirname(path));
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const folderOptions = [...new Set(['', ...tree.folders, dirname(path)])].sort((a, b) =>
-    a.localeCompare(b, 'pt-BR'),
-  );
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -81,17 +78,12 @@ export function RenameDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="rename-folder">Pasta</Label>
-            <NativeSelect
+            <FolderSelect
               id="rename-folder"
               value={folder}
-              onChange={(event) => setFolder(event.target.value)}
-            >
-              {folderOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option || '(raiz do vault)'}
-                </option>
-              ))}
-            </NativeSelect>
+              folders={tree.folders}
+              onChange={setFolder}
+            />
           </div>
           {error ? (
             <p role="alert" className="text-destructive text-sm">
